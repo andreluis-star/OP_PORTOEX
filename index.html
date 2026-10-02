@@ -1149,26 +1149,40 @@ function openNewLane(opts={}){
     <div class="fld"><label>Horário de saída</label><input type="time" id="nlHora" value="08:00"></div>
     <div class="fld"><label>Liberar motorista às</label><input type="time" id="nlLib"></div>
     <div class="fld"><label>Motorista</label><input id="nlMot" placeholder="ex.: Renato"></div>
-    <div class="fld"><label>Placa(s)</label><input id="nlPlaca" list="dlPlacas" placeholder="ex.: QSU6I78 / SUR8B97" style="text-transform:uppercase"></div>
+    <div class="fld"><label>Placa do veículo / cavalo</label><input id="nlPl1" list="dlPlacas" placeholder="ex.: QSU6I78" style="text-transform:uppercase"></div>
+    <div class="fld"><label>Placa da carreta (opcional)</label><input id="nlPl2" list="dlPlacas" placeholder="ex.: SUR8B97" style="text-transform:uppercase"></div>
     <div class="fld full"><label>Veículo e capacidade</label><input id="nlVei" list="dlVeis" placeholder="ex.: Carreta - 27.000kgs - 90cbm"></div>
     <div class="fld full"><label>Descrição da saída (opcional)</label><input id="nlDesc" placeholder="ex.: Carreta Agregado - Transferência SP"></div>
     <datalist id="dlVeis">${veis.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
     <datalist id="dlPlacas">${S.placas.filter(p=>p.ativo).map(p=>`<option value="${esc(p.placa)}">${esc(FROTA_N[p.tipo])}</option>`).join('')}</datalist>
-    <p class="adm-help full" id="nlFrota"></p></div>`
+    <div class="full" id="nlFrota"></div></div>`
    :`<div class="form"><div class="fld full"><label>Nome do agrupamento</label><input id="nlTit" placeholder="ex.: Fechar Terceiro - Curitiba / Transferência Filial SP"></div>
     <div class="fld full"><label>Observações (uma por linha, opcional)</label><textarea id="nlNotas" placeholder="ex.: EXPRESSO - 2"></textarea></div></div>`}`,
   `<button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="nlGo">${ids.length?'Criar e mover':'Criar'}</button>`);
  document.querySelectorAll('[data-nlt]').forEach(b=>b.onclick=()=>openNewLane({...opts,tipo:b.dataset.nlt}));
- const pl=$('nlPlaca');if(pl)pl.oninput=()=>{const ps=extractPlates(pl.value);$('nlFrota').innerHTML=ps.length?`Classificação: <span class="ptag ${FROTA_C[frotaOfPlates(ps)]}">${FROTA_N[frotaOfPlates(ps)]}</span>`:''};
+ const isAdm=decide('admin').r==='allow';
+ const platesTyped=()=>[$('nlPl1')?.value,$('nlPl2')?.value].map(normPlate).filter(Boolean);
+ const newPlates=()=>platesTyped().filter(p=>!S.placas.some(x=>x.placa===p));
+ const renderPl=()=>{const box=$('nlFrota');if(!box)return;const ps=platesTyped();if(!ps.length){box.innerHTML='';return}
+  const prev={};box.querySelectorAll('[data-npl]').forEach(s=>prev[s.dataset.npl]=s.value);
+  const bad=ps.filter(p=>!/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(p));
+  const nw=newPlates();
+  box.innerHTML=`<div class="box" style="margin:4px 0 0"><div class="meta">Classificação do veículo: <span class="ptag ${FROTA_C[frotaOfPlates(ps)]}">${FROTA_N[frotaOfPlates(ps)]}</span>${bad.length?` · <span class="lg-no">confira: ${bad.join(', ')} não parece placa (AAA9A99 ou AAA9999)</span>`:''}</div>
+   ${nw.length?`<h4 style="margin:10px 0 6px">Placa${nw.length>1?'s':''} nova${nw.length>1?'s':''}, ainda sem cadastro</h4>${nw.map(p=>`<div class="row2" style="align-items:center;margin-bottom:6px"><span class="ptag pt">${p}</span>${isAdm?`<select data-npl="${p}" style="max-width:260px"><option value="">Terceiro (não cadastrar)</option><option value="frota" ${prev[p]==='frota'?'selected':''}>Cadastrar como Frota</option><option value="agregado" ${prev[p]==='agregado'?'selected':''}>Cadastrar como Agregado</option></select><input data-npld="${p}" placeholder="descrição (opcional)" style="max-width:220px">`:'<span class="meta">será considerada Terceiro. Para cadastrar como Frota ou Agregado, peça a quem administra os cadastros.</span>'}</div>`).join('')}`:''}</div>`;
+  box.querySelectorAll('[data-npl]').forEach(s=>s.onchange=()=>{const t=s.value||'terceiro';const tmp=S.placas;const ps2=platesTyped();const fake=[...tmp,...[...box.querySelectorAll('[data-npl]')].filter(x=>x.value).map(x=>({placa:x.dataset.npl,tipo:x.value,ativo:true}))];S.placas=fake;const fo=frotaOfPlates(ps2);S.placas=tmp;box.querySelector('.ptag').className='ptag '+FROTA_C[fo];box.querySelector('.ptag').textContent=FROTA_N[fo]})};
+ ['nlPl1','nlPl2'].forEach(id=>{const el=$(id);if(el)el.oninput=renderPl});
  $('nlGo').onclick=async()=>{const b=$('nlGo');let rec;
   if(tipo==='veiculo'){const h=$('nlHora').value,[hh,mm]=(h||'').split(':');if(!h)return toast('Informe o horário de saída',true);
    const desc=$('nlDesc').value.trim();
    rec={data:S.day,tipo:'veiculo',ordem:Math.max(0,...S.lanes.filter(l=>l.tipo==='veiculo').map(l=>+l.ordem||0))+1,
-    evento:`Saída as ${hh}${mm&&mm!=='00'?':'+mm:''}h${desc?' - '+desc:''}`,motorista:$('nlMot').value.trim()||null,placa:$('nlPlaca').value.trim().toUpperCase()||null,
+    evento:`Saída as ${hh}${mm&&mm!=='00'?':'+mm:''}h${desc?' - '+desc:''}`,motorista:$('nlMot').value.trim()||null,placa:platesTyped().join(' / ')||null,
     veiculo:$('nlVei').value.trim()||null,liberar_as:$('nlLib').value||null}}
   else{const t=$('nlTit').value.trim();if(!t)return toast('Dê um nome ao agrupamento',true);
    rec={data:S.day,tipo:'secao',ordem:Math.max(0,...S.lanes.map(l=>+l.ordem||0))+1,titulo:t,notas:$('nlNotas').value.split('\n').map(s=>s.trim()).filter(Boolean)}}
-  b.disabled=true;const{data,error}=await sb.from('faixas').insert(rec).select().single();b.disabled=false;
+  b.disabled=true;
+  if(tipo==='veiculo'&&isAdm){const novas=[...document.querySelectorAll('[data-npl]')].filter(s=>s.value).map(s=>({placa:s.dataset.npl,tipo:s.value,descricao:(document.querySelector(`[data-npld="${s.dataset.npl}"]`)?.value||'').trim()||null,ativo:true}));
+   if(novas.length){const{error:pe}=await sb.from('placas').insert(novas);if(pe){b.disabled=false;return fail(pe,'Cadastrar placa')}await loadMeta();toast(`Placa${novas.length>1?'s':''} cadastrada${novas.length>1?'s':''}: ${novas.map(p=>p.placa+' ('+FROTA_N[p.tipo]+')').join(', ')}`)}}
+  const{data,error}=await sb.from('faixas').insert(rec).select().single();b.disabled=false;
   if(error)return fail(error,'Criar');UI.open[data.id]=true;saveUI();await loadDay();closeDrawer();renderBoard();
   toast(`${tipo==='veiculo'?'Veículo':'Agrupamento'} criado: ${laneName(laneById(data.id)||data)}`);
   if(ids.length){sel.clear();await moveRows(ids,data.id,opts.why||'')}
