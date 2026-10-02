@@ -7,24 +7,24 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   --paper:#E9EDF0;--surface:#FFFFFF;--surface2:#F5F7F9;--ink:#16222E;--muted:#5B6B79;--line:#CBD3DA;--line2:#E1E6EA;
-  --dock:#1D4C73;--dock-soft:#DCE7F1;--hivis:#F5C400;--hivis-ink:#2F2500;
+  --dock:#1A3A6E;--dock-soft:#DDE5F2;--orange:#E8611A;--orange-soft:#FBE3D5;--navy:#1A3A6E;--hivis:#F5C400;--hivis-ink:#2F2500;
   --ok:#2F7D4F;--ok-soft:#DDEFE3;--risk:#B83A2E;--risk-soft:#F6DEDB;--warn:#B8650F;--warn-soft:#F7E6D2;
   --plum:#634A92;--plum-soft:#E7E0F3;--blue:#245E95;--blue-soft:#DCE8F4;--grey-soft:#E6EAED;
-  --font:"Archivo","Arial Narrow",Arial,Helvetica,sans-serif;
+  --font:"Inter",Arial,Helvetica,sans-serif;--cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --paper:#0F161D;--surface:#16212B;--surface2:#1B2833;--ink:#E3E9EE;--muted:#93A3B1;--line:#2C3A47;--line2:#22303C;
-  --dock:#6FA3D2;--dock-soft:#1C3247;--hivis:#F5C400;--hivis-ink:#2F2500;
+  --dock:#86A8DE;--dock-soft:#1B2C47;--orange:#F07A3A;--orange-soft:#3A2416;--navy:#1A3A6E;--hivis:#F5C400;--hivis-ink:#2F2500;
   --ok:#5CB884;--ok-soft:#173326;--risk:#E07467;--risk-soft:#3A1D1A;--warn:#E09A4E;--warn-soft:#3A2A16;
   --plum:#A790D6;--plum-soft:#2A2340;--blue:#7DB0E0;--blue-soft:#1A2E42;--grey-soft:#24313D;}}
 :root[data-theme="dark"]{
   --paper:#0F161D;--surface:#16212B;--surface2:#1B2833;--ink:#E3E9EE;--muted:#93A3B1;--line:#2C3A47;--line2:#22303C;
-  --dock:#6FA3D2;--dock-soft:#1C3247;--ok:#5CB884;--ok-soft:#173326;--risk:#E07467;--risk-soft:#3A1D1A;--warn:#E09A4E;--warn-soft:#3A2A16;
+  --dock:#86A8DE;--dock-soft:#1B2C47;--orange:#F07A3A;--orange-soft:#3A2416;--navy:#1A3A6E;--ok:#5CB884;--ok-soft:#173326;--risk:#E07467;--risk-soft:#3A1D1A;--warn:#E09A4E;--warn-soft:#3A2A16;
   --plum:#A790D6;--plum-soft:#2A2340;--blue:#7DB0E0;--blue-soft:#1A2E42;--grey-soft:#24313D;}
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -277,6 +277,62 @@ tr.off td{opacity:.55}
 .row.rec-alert:hover{background:var(--risk-soft);filter:brightness(.98)}
 .ss .k-rec{background:var(--plum-soft);color:var(--plum)}.ss .k-al{background:var(--risk);color:#fff}
 
+
+/* ===== identidade Portoex ===== */
+body{font-family:var(--font);font-variation-settings:normal}
+.brand{display:flex;align-items:center;gap:9px;margin-right:6px}
+.brand .mark{width:38px;height:31px;flex:none}
+.brand .wm{display:flex;flex-direction:column;line-height:1}
+.brand .wm b{font-family:var(--cond);font-size:24px;font-weight:800;letter-spacing:.5px;color:var(--navy)}
+.brand .wm b em{font-style:normal;color:var(--orange)}
+.brand .wm span{font-size:10.5px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;margin-top:2px}
+:root[data-theme="dark"] .brand .wm b{color:#E3E9EE}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand .wm b{color:#E3E9EE}}
+.top{border-bottom:3px solid var(--orange)}
+.spine .t,.plate .p,.sum h1,.lhead h2,.days button,.sline .sv b,.section-title,.dh h3{font-family:var(--cond)}
+.spine .t,.plate .p{font-weight:700;letter-spacing:.02em}
+.sum h1{font-size:30px;font-weight:800;color:var(--navy)}
+:root[data-theme="dark"] .sum h1{color:var(--ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sum h1{color:var(--ink)}}
+.lhead h2{font-size:19px;font-weight:700}
+.sline .sv b{font-size:17px;font-weight:700}
+.days button{font-size:15px;font-weight:700;padding:4px 10px}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pri:hover{background:var(--orange);border-color:var(--orange)}
+.row,.sline{font-variation-settings:normal}
+.spine{background:var(--navy);color:#fff}
+/* login */
+.login{background:linear-gradient(135deg,#1A3A6E 0%,#132B52 60%,#0E2242 100%)}
+.lcard{border:none;border-top:5px solid var(--orange);box-shadow:0 18px 50px rgba(0,0,0,.35);padding:28px 26px}
+.lcard .brand{justify-content:center;margin:0 0 10px}
+.lcard .brand .mark{width:54px;height:44px}
+.lcard .brand .wm b{font-size:34px}
+.lcard .btn.pri{background:var(--orange);border-color:var(--orange)}
+.lcard .btn.pri:hover{background:var(--navy);border-color:var(--navy)}
+/* placas por tipo de frota */
+.plate{border-left:2px solid #fff!important}
+.plate.pf{background:#1A3A6E;color:#E8611A}
+.plate.pa{background:#E8611A;color:#1A3A6E}
+.plate.pt{background:#E8611A;color:#fff}
+.plate .s{font-weight:700;letter-spacing:.8px;text-transform:uppercase;font-size:10px;opacity:1}
+.lane.sumline .plate .s{display:block!important;font-size:8.5px;line-height:1;margin-top:1px;order:9}
+.lane.pool .plate{background:var(--grey-soft);color:var(--muted)}
+.fl{display:inline-flex;align-items:center;gap:5px;font-size:13px}
+.fl i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.fl .pf{background:#1A3A6E;outline:2px solid #E8611A;outline-offset:-2px}.fl .pa{background:#E8611A;outline:2px solid #1A3A6E;outline-offset:-2px}.fl .pt{background:#E8611A}
+.ptag{display:inline-block;font-family:var(--cond);font-weight:700;font-size:14px;padding:1px 8px;border-radius:4px;letter-spacing:.03em}
+.ptag.pf{background:#1A3A6E;color:#E8611A}.ptag.pa{background:#E8611A;color:#1A3A6E}.ptag.pt{background:#E8611A;color:#fff}
+
+
+.pw{position:relative;display:block}
+.pw input{width:100%;padding-right:44px!important}
+.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--muted);padding:6px 8px;border-radius:6px;display:grid;place-items:center}
+.eye:hover{color:var(--navy);background:var(--surface2)}
+.eye .e-shut{display:none}
+.eye.on .e-open{display:none}.eye.on .e-shut{display:inline}
+.eye.on{color:var(--orange)}
+.caps{font-size:12.5px;color:var(--warn);margin:-4px 0 10px;font-weight:600}
+
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -298,16 +354,17 @@ tr.off td{opacity:.55}
 
 <div id="login" class="login hide">
   <form class="lcard" id="lform">
-    <div class="brand"><b>Portoex</b><span>Programação diária</span></div>
+    <div class="brand"><svg class="mark" viewBox="0 0 130 105" aria-hidden="true"><polygon points="0,85 18,85 48,48 30,25" fill="#1A3A6E"/><polygon points="52,85 70,85 40,48 22,25" fill="#1A3A6E"/><polygon points="18,10 36,10 78,75 60,75" fill="#E8611A"/><polygon points="55,75 73,75 130,0 112,0" fill="#E8611A"/></svg><div class="wm"><b>PORTO<em>EX</em></b><span>Programação diária</span></div></div>
     <div id="lmsg" class="lmsg"></div>
     <div id="lfields">
       <label class="fld"><span>E-mail</span><input id="lemail" type="email" autocomplete="username" required></label>
-      <label class="fld"><span>Senha</span><input id="lpass" type="password" autocomplete="current-password" required></label>
+      <label class="fld"><span>Senha</span><span class="pw"><input id="lpass" type="password" autocomplete="current-password" required><button type="button" class="eye" data-eye="lpass" aria-label="Mostrar senha" title="Mostrar senha"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="e-open" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="e-open" cx="12" cy="12" r="3"/><path class="e-shut" d="M17.9 17.9A10.4 10.4 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.1 9.1 0 0 1 12 5c7 0 11 7 11 7a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22"/></svg></button></span></label>
+      <div class="caps hide" id="lcaps">Caps Lock está ativado</div>
       <button class="btn pri" type="submit" id="lgo">Entrar</button>
       <button class="linkbtn" type="button" id="lforgot">Esqueci minha senha</button>
     </div>
     <div id="lnew" class="hide">
-      <label class="fld"><span>Nova senha (mínimo 8 caracteres)</span><input id="lnewpass" type="password" autocomplete="new-password" minlength="8"></label>
+      <label class="fld"><span>Nova senha (mínimo 8 caracteres)</span><span class="pw"><input id="lnewpass" type="password" autocomplete="new-password" minlength="8"><button type="button" class="eye" data-eye="lnewpass" aria-label="Mostrar senha" title="Mostrar senha"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="e-open" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="e-open" cx="12" cy="12" r="3"/><path class="e-shut" d="M17.9 17.9A10.4 10.4 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.1 9.1 0 0 1 12 5c7 0 11 7 11 7a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22"/></svg></button></span></label>
       <button class="btn pri" type="button" id="lsetpass">Salvar nova senha</button>
     </div>
   </form>
@@ -315,7 +372,7 @@ tr.off td{opacity:.55}
 <div id="loading" class="loading">Carregando…</div>
 <header class="top hide" id="app-top">
   <div class="top-in">
-    <div class="brand"><b>Portoex</b><span>Programação diária</span></div>
+    <div class="brand"><svg class="mark" viewBox="0 0 130 105" aria-hidden="true"><polygon points="0,85 18,85 48,48 30,25" fill="#1A3A6E"/><polygon points="52,85 70,85 40,48 22,25" fill="#1A3A6E"/><polygon points="18,10 36,10 78,75 60,75" fill="#E8611A"/><polygon points="55,75 73,75 130,0 112,0" fill="#E8611A"/></svg><div class="wm"><b>PORTO<em>EX</em></b><span>Programação diária</span></div></div>
     <div class="days" id="days"></div>
     <div class="search"><input id="q" type="search" placeholder="Buscar NF, destinatário, cidade, cliente, placa…" aria-label="Buscar"></div>
     <button class="tbtn" id="btnReq">Solicitações<span class="cnt" id="cReq">0</span></button>
@@ -391,7 +448,7 @@ const dayLabel=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
 const $=id=>document.getElementById(id);
 
 /* ---------- estado ---------- */
-const S={day:null,days:[],lanes:[],rows:{},hist:[],reqs:[],users:[],profiles:[],acoes:[],perms:{},approvers:{},me:null};
+const S={placas:[],day:null,days:[],lanes:[],rows:{},hist:[],reqs:[],users:[],profiles:[],acoes:[],perms:{},approvers:{},me:null};
 let UI={view:'c',open:{}};try{UI=Object.assign(UI,JSON.parse(localStorage.getItem(LKEY)||'{}'))}catch(e){}
 const saveUI=()=>{try{localStorage.setItem(LKEY,JSON.stringify(UI))}catch(e){}};
 let sel=new Set(),panel=null,LC={},PM={};
@@ -420,8 +477,13 @@ function laneName(l){if(!l)return'—';return l.tipo==='veiculo'?`${l.motorista|
 function depart(l){if(l.tipo!=='veiculo')return{t:'—',s:''};const m=(l.evento||'').match(/(\d{1,2})(?::(\d{2}))?\s*h/i);const t=m?String(m[1]).padStart(2,'0')+':'+(m[2]||'00'):'--:--';
  return{t,s:/noite anterior|dia anterior/i.test(l.evento)?'dia anterior':/em viagem/i.test(l.evento)?'em viagem':''}}
 function cap(l){const m=(l.veiculo||'').match(/([\d.,]+)\s*kgs?/i);return{kg:m?num(m[1].replace(/\./g,'')):0}}
-function plates(l){return String(l.placa||'').toUpperCase().split(/[\s\/,;]+/).filter(x=>x.length>=5)}
-function plateHTML(l){if(l.tipo!=='veiculo')return `<div class="plate"><span class="p">—</span></div>`;const p=plates(l);return `<div class="plate"><span class="s">placa</span>${p.length?p.map(x=>`<span class="p">${esc(x)}</span>`).join(''):'<span class="p">—</span>'}</div>`}
+const normPlate=p=>String(p||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function extractPlates(raw){const found=normPlate(raw).match(/[A-Z]{3}[0-9][A-Z0-9][0-9]{2}/g)||[];return [...new Set(found)]}
+function plates(l){const f=extractPlates(l.placa);return f.length?f:String(l.placa||'').toUpperCase().split(/[\s\/,;]+/).filter(x=>x.length>=5)}
+const FROTA_N={frota:'Frota',agregado:'Agregado',terceiro:'Terceiro'},FROTA_C={frota:'pf',agregado:'pa',terceiro:'pt'};
+function frotaOfPlates(ps){const m=Object.fromEntries(S.placas.filter(p=>p.ativo).map(p=>[p.placa,p.tipo]));if(ps.some(p=>m[p]==='frota'))return'frota';if(ps.some(p=>m[p]==='agregado'))return'agregado';return'terceiro'}
+const frotaOf=l=>frotaOfPlates(extractPlates(l.placa));
+function plateHTML(l){if(l.tipo!=='veiculo')return `<div class="plate"><span class="p">—</span></div>`;const p=plates(l),fo=frotaOf(l);return `<div class="plate ${FROTA_C[fo]}" title="${FROTA_N[fo]}"><span class="s">${FROTA_N[fo]}</span>${p.length?p.map(x=>`<span class="p">${esc(x)}</span>`).join(''):'<span class="p">—</span>'}</div>`}
 const laneRows=l=>Object.values(S.rows).filter(r=>r.faixa_id===l.id).sort((a,b)=>a.ordem-b.ordem||String(a.criado_em).localeCompare(b.criado_em)).map(r=>r.id);
 function rowLabel(id){const r=S.rows[id];if(r)return [r.nf?'NF '+r.nf:'',r.dest||r.col].filter(Boolean).join(' — ').slice(0,90);const l=laneById(id);return l?laneName(l):''}
 function ago(ts){const s=(Date.now()-new Date(ts))/1000;if(s<60)return'agora';if(s<3600)return Math.floor(s/60)+' min';if(s<86400)return Math.floor(s/3600)+' h';return new Date(ts).toLocaleDateString('pt-BR')}
@@ -435,7 +497,8 @@ async function q(p){const {data,error}=await p;if(error)throw error;return data}
 async function loadMeta(){
  const [p,a,pe,ap,us]=await Promise.all([q(sb.from('perfis').select('*').order('criado_em')),q(sb.from('acoes').select('*').order('ordem')),
   q(sb.from('permissoes').select('*')),q(sb.from('aprovadores').select('*')),q(sb.from('usuarios').select('*').order('nome'))]);
- S.profiles=p;S.acoes=a;S.users=us;S.perms={};pe.forEach(x=>(S.perms[x.perfil_id]=S.perms[x.perfil_id]||{})[x.acao_id]=x.modo);
+ S.profiles=p;S.acoes=a;S.users=us;
+ try{S.placas=await q(sb.from('placas').select('*').order('placa'))}catch(e){S.placas=[]}S.perms={};pe.forEach(x=>(S.perms[x.perfil_id]=S.perms[x.perfil_id]||{})[x.acao_id]=x.modo);
  S.approvers={};ap.forEach(x=>(S.approvers[x.acao_id]=S.approvers[x.acao_id]||[]).push(x.perfil_id));
 }
 async function loadDays(){S.days=await q(sb.from('dias').select('data,lembretes').order('data',{ascending:false}).limit(60))}
@@ -619,7 +682,7 @@ function renderBoard(){
  const all=Object.values(S.rows).filter(r=>!r.nota),cnt=s=>all.filter(r=>r.status===s).length,veh=S.lanes.filter(l=>l.tipo==='veiculo');
  const dia=S.days.find(d=>d.data===S.day);
  $('sum').innerHTML=S.day?`<h1>Programação ${dayLabel(S.day)}</h1>
-  <span class="k"><b>${veh.length}</b> veículos</span><span class="k"><b>${all.length}</b> NFs</span>
+  <span class="k"><b>${veh.length}</b> veículos</span><span class="k fl"><i class="pf"></i><b>${veh.filter(l=>frotaOf(l)==='frota').length}</b> frota <i class="pa"></i><b>${veh.filter(l=>frotaOf(l)==='agregado').length}</b> agregados <i class="pt"></i><b>${veh.filter(l=>frotaOf(l)==='terceiro').length}</b> terceiros</span><span class="k"><b>${all.length}</b> NFs</span>
   <span class="k"><b>${brl(all.reduce((a,r)=>a+num(r.valor),0))}</b> em mercadoria</span>
   <span class="k"><b>${cnt('OK')}</b> OK</span><span class="k"><b>${cnt('Em definição')}</b> em definição</span>
   <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>${RECDAY===S.day?`<span class="k"><b style="color:var(--plum)">${Object.values(RM).filter(m=>!m.alert).length}</b> de dias anteriores</span><span class="k"><b style="color:var(--risk)">${Object.values(RM).filter(m=>m.alert).length}</b> voltaram após veículo</span>`:'<span class="k">verificando dias anteriores…</span>'}`:`<h1>Nenhum dia aberto</h1>`;
@@ -648,6 +711,7 @@ function cadastroResumo(e){let a=null,b=null;try{a=e.de?JSON.parse(e.de):null;b=
  if(t==='permissoes'){const x=b||a;const p=S.profiles.find(p=>p.id===x.perfil_id)?.nome||x.perfil_id;return `${p} / ${ACTIONS_CURTO[x.acao_id]||x.acao_id}: ${MODE_N[a?.modo]||'—'} → ${MODE_N[b?.modo]||'removido'}`}
  if(t==='aprovadores'){const x=b||a;return `${op==='DELETE'?'removeu':'incluiu'} ${S.profiles.find(p=>p.id===x.perfil_id)?.nome||x.perfil_id} como aprovador de ${ACTIONS_CURTO[x.acao_id]||x.acao_id}`}
  if(t==='usuarios'){const x=b||a;if(op==='INSERT')return `cadastrou ${x.nome} (${x.email})`;const diff=Object.keys(b||{}).filter(k=>k!=='criado_em'&&JSON.stringify(a?.[k])!==JSON.stringify(b?.[k])).map(k=>`${k}: ${a?.[k]??'vazio'} → ${b?.[k]??'vazio'}`);return `${x.nome}: ${diff.join(', ')||'sem mudança'}`}
+ if(t==='placas'){const x=b||a;return op==='INSERT'?`cadastrou a placa ${x.placa} como ${FROTA_N[x.tipo]}`:op==='DELETE'?`removeu a placa ${x.placa} (passa a ser Terceiro)`:`placa ${x.placa}: ${FROTA_N[a?.tipo]}${a?.ativo?'':' (inativa)'} → ${FROTA_N[b?.tipo]}${b?.ativo?'':' (inativa)'}`}
  if(t==='perfis'){const x=b||a;return op==='INSERT'?`criou perfil ${x.nome}`:`perfil ${a?.nome} → ${b?.nome}`}
  return t}
 function histItem(e){
@@ -733,11 +797,23 @@ function renderReqs(){
 /* ---------- cadastros ---------- */
 let admTab='users',draft=null;
 function openAdmin(){if(decide('admin').r!=='allow')return deny('Seu perfil não administra cadastros');
- panel='adm';draft=JSON.parse(JSON.stringify({users:S.users,profiles:S.profiles,perms:S.perms,approvers:S.approvers}));renderAdmin()}
+ panel='adm';draft=JSON.parse(JSON.stringify({users:S.users,profiles:S.profiles,perms:S.perms,approvers:S.approvers,placas:S.placas}));renderAdmin()}
 function renderAdmin(){
  const P=draft.profiles;let body='';
- const tabs=`<div class="tabs" role="tablist"><button role="tab" data-tab="users" aria-selected="${admTab==='users'}">Usuários e logins</button><button role="tab" data-tab="perms" aria-selected="${admTab==='perms'}">Perfis e permissões</button></div>`;
- if(admTab==='users'){
+ const tabs=`<div class="tabs" role="tablist"><button role="tab" data-tab="users" aria-selected="${admTab==='users'}">Usuários e logins</button><button role="tab" data-tab="perms" aria-selected="${admTab==='perms'}">Perfis e permissões</button><button role="tab" data-tab="placas" aria-selected="${admTab==='placas'}">Placas (frota e agregados)</button></div>`;
+ if(admTab==='placas'){
+  const known=new Set(draft.placas.map(p=>p.placa));
+  const used=[...new Set(S.lanes.filter(l=>l.tipo==='veiculo').flatMap(l=>extractPlates(l.placa)))].filter(p=>!known.has(p)).sort();
+  body=`<p class="adm-help">Cadastre aqui as placas da <b>Frota</b> (veículos da Portoex) e dos <b>Agregados</b> (veículos com contrato). Qualquer placa fora desta lista é considerada <b>Terceiro</b>. Escreva a placa sem espaço, hífen ou barra (ex.: QSU6I78). Em conjunto cavalo + carreta, basta uma das placas estar cadastrada; se uma for Frota e a outra Agregado, vale Frota.</p>
+  <p class="adm-help"><span class="ptag pf">FROTA</span> letras laranja, fundo azul · <span class="ptag pa">AGREGADO</span> letras azuis, fundo laranja · <span class="ptag pt">TERCEIRO</span> letras brancas, fundo laranja</p>
+  ${used.length?`<div class="box"><h4>Placas do dia ${dayLabel(S.day)} sem cadastro (hoje contam como Terceiro)</h4><div class="row2">${used.map(p=>`<span style="display:inline-flex;gap:4px;align-items:center;margin:2px 10px 2px 0"><span class="ptag pt">${p}</span><button class="btn" data-adm="addPlaca" data-placa="${p}" data-tipo="frota" style="padding:2px 8px">+ Frota</button><button class="btn" data-adm="addPlaca" data-placa="${p}" data-tipo="agregado" style="padding:2px 8px">+ Agregado</button></span>`).join('')}</div></div>`:''}
+  <div class="adm-wrap"><table class="adm"><thead><tr><th>Placa</th><th>Tipo</th><th>Descrição (modelo, motorista fixo, contrato…)</th><th>Ativa</th><th></th></tr></thead><tbody>
+  ${draft.placas.map((p,i)=>`<tr class="${p.ativo?'':'off'}"><td><input type="text" data-pl="${i}" data-k="placa" value="${esc(p.placa)}" style="font-family:var(--cond);font-weight:700;font-size:15px;text-transform:uppercase"></td>
+   <td><select data-pl="${i}" data-k="tipo"><option value="frota" ${p.tipo==='frota'?'selected':''}>Frota</option><option value="agregado" ${p.tipo==='agregado'?'selected':''}>Agregado</option></select></td>
+   <td><input type="text" data-pl="${i}" data-k="descricao" value="${esc(p.descricao||'')}"></td><td><input type="checkbox" data-pl="${i}" data-k="ativo" ${p.ativo?'checked':''} aria-label="Ativa"></td>
+   <td><button class="btn no" data-adm="delPlaca" data-i="${i}" style="padding:3px 10px">Remover</button></td></tr>`).join('')}
+  </tbody></table></div><button class="btn adm-add" data-adm="addPlaca">+ Nova placa</button>`;
+ }else if(admTab==='users'){
   body=`<p class="adm-help">Cadastre aqui a pessoa e o perfil. O login (e-mail e senha) é criado no painel do Supabase, em Authentication › Users › Add user, com o mesmo e-mail. "Nome na programação" é como a pessoa aparece na coluna Responsável e define quais são as "próprias cargas".</p>
   <div class="adm-wrap"><table class="adm"><thead><tr><th>Nome</th><th>E-mail de login</th><th>Setor</th><th>Perfil</th><th>Nome na programação</th><th>Ativo</th></tr></thead><tbody>
   ${draft.users.map((u,i)=>`<tr class="${u.ativo?'':'off'}"><td><input type="text" data-u="${i}" data-k="nome" value="${esc(u.nome)}"></td><td><input type="email" data-u="${i}" data-k="email" value="${esc(u.email)}"></td>
@@ -759,6 +835,7 @@ function renderAdmin(){
 async function saveAdmin(){
  const adminOk=draft.users.some(u=>u.ativo&&(draft.perms[u.perfil_id]||{}).admin==='livre');
  if(!adminOk)return toast('Pelo menos um usuário ativo precisa poder administrar cadastros',true);
+ {const seen=new Set();for(const p of draft.placas){if(!/^[A-Z0-9]{6,8}$/.test(p.placa||''))return toast('Placa inválida: "'+(p.placa||'vazia')+'". Use só letras e números, sem espaço.',true);if(seen.has(p.placa))return toast('Placa repetida: '+p.placa,true);seen.add(p.placa)}}
  if(draft.users.some(u=>!u.nome||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(u.email||'')))return toast('Todo usuário precisa de nome e e-mail válido',true);
  let n=0;const run=async(p,ctx)=>{const{error}=await p;if(error)throw Object.assign(error,{ctx});n++};
  try{
@@ -768,6 +845,10 @@ async function saveAdmin(){
   for(const a of S.acoes){const o=new Set(S.approvers[a.id]||[]),nn=new Set(draft.approvers[a.id]||[]);
    for(const p of nn)if(!o.has(p))await run(sb.from('aprovadores').insert({acao_id:a.id,perfil_id:p}),'aprovadores');
    for(const p of o)if(!nn.has(p))await run(sb.from('aprovadores').delete().eq('acao_id',a.id).eq('perfil_id',p),'aprovadores')}
+  {const old=new Map(S.placas.map(p=>[p.placa,p])),nw=new Set(draft.placas.map(p=>p.placa));
+   for(const p of S.placas)if(!nw.has(p.placa))await run(sb.from('placas').delete().eq('placa',p.placa),'placa '+p.placa);
+   for(const p of draft.placas){const o=old.get(p.placa),rec={placa:p.placa,tipo:p.tipo,descricao:p.descricao||null,ativo:!!p.ativo};
+    if(!o)await run(sb.from('placas').insert(rec),'placa '+p.placa);else if(o.tipo!==rec.tipo||(o.descricao||null)!==rec.descricao||o.ativo!==rec.ativo)await run(sb.from('placas').update(rec).eq('placa',p.placa),'placa '+p.placa)}}
   for(const u of draft.users){const rec={nome:u.nome.trim(),email:u.email.trim().toLowerCase(),setor:u.setor||null,perfil_id:u.perfil_id,nome_programacao:u.nome_programacao||null,ativo:!!u.ativo};
    const o=S.users.find(x=>x.id===u.id);
    if(!o)await run(sb.from('usuarios').insert(rec),'usuário '+rec.nome);
@@ -956,6 +1037,8 @@ document.addEventListener('click',async e=>{
  if(t.dataset.adm){const a=t.dataset.adm;
   if(a==='save'){t.disabled=true;await saveAdmin();return}
   if(a==='addUser'){draft.users.push({id:null,nome:'',email:'',setor:'',perfil_id:draft.profiles[draft.profiles.length-1].id,nome_programacao:'',ativo:true});renderAdmin()}
+  if(a==='addPlaca'){draft.placas.unshift({placa:t.dataset.placa||'',tipo:t.dataset.tipo||'frota',descricao:'',ativo:true,_new:true});renderAdmin();return}
+  if(a==='delPlaca'){const p=draft.placas[+t.dataset.i];if(p&&confirm('Remover a placa '+(p.placa||'')+'? Ela passa a contar como Terceiro.')){draft.placas.splice(+t.dataset.i,1);renderAdmin()}return}
   if(a==='addProfile'){const id='p'+Date.now().toString(36);draft.profiles.push({id,nome:'Novo perfil'});draft.perms[id]=Object.fromEntries(S.acoes.map(x=>[x.id,'bloq']));renderAdmin()}
   return}
  if(t.dataset.day){await selectDay(t.dataset.day);return}
@@ -968,6 +1051,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('change',async e=>{const t=e.target;
  if(t.id==='dayPick'&&t.value){await selectDay(t.value);return}
  if(t.dataset.u!=null){const u=draft.users[+t.dataset.u];u[t.dataset.k]=t.type==='checkbox'?t.checked:t.value.trim();if(t.type==='checkbox')t.closest('tr').classList.toggle('off',!t.checked);return}
+ if(t.dataset.pl!=null){const p=draft.placas[+t.dataset.pl],k=t.dataset.k;p[k]=t.type==='checkbox'?t.checked:k==='placa'?normPlate(t.value):t.value.trim();if(k==='placa')t.value=p[k];if(t.type==='checkbox')t.closest('tr').classList.toggle('off',!t.checked);return}
  if(t.dataset.p!=null){draft.profiles[+t.dataset.p].nome=t.value.trim()||'Sem nome';return}
  if(t.dataset.pp){(draft.perms[t.dataset.pp]=draft.perms[t.dataset.pp]||{})[t.dataset.a]=t.value;t.dataset.v=t.value;return}
  if(t.dataset.ap){const s=new Set(draft.approvers[t.dataset.ap]||[]);t.checked?s.add(t.value):s.delete(t.value);draft.approvers[t.dataset.ap]=[...s];return}
@@ -999,7 +1083,9 @@ document.addEventListener('dragend',()=>{dragIds=null;document.querySelectorAll(
 /* ---------- login e início ---------- */
 let liveOn=false,channel=null,recovering=false;
 function showLogin(msg,ok){$('loading').classList.add('hide');$('login').classList.remove('hide');$('lmsg').textContent=msg||'';$('lmsg').className='lmsg'+(ok?' ok':'')}
-$('lform').onsubmit=async e=>{e.preventDefault();$('lgo').disabled=true;$('lmsg').textContent='';
+document.querySelectorAll('[data-eye]').forEach(b=>b.addEventListener('click',()=>{const i=$(b.dataset.eye),show=i.type==='password';i.type=show?'text':'password';b.classList.toggle('on',show);const t=show?'Ocultar senha':'Mostrar senha';b.title=t;b.setAttribute('aria-label',t);i.focus()}));
+['keydown','keyup'].forEach(ev=>$('lpass').addEventListener(ev,e=>{if(e.getModifierState)$('lcaps').classList.toggle('hide',!e.getModifierState('CapsLock'))}));
+$('lform').onsubmit=async e=>{e.preventDefault();$('lgo').disabled=true;$('lmsg').textContent='';$('lpass').type='password';document.querySelector('[data-eye="lpass"]').classList.remove('on');
  const{error}=await sb.auth.signInWithPassword({email:$('lemail').value.trim().toLowerCase(),password:$('lpass').value});
  $('lgo').disabled=false;if(error)return showLogin(error.message==='Invalid login credentials'?'E-mail ou senha incorretos.':error.message);start()};
 $('lforgot').onclick=async()=>{const em=$('lemail').value.trim().toLowerCase();if(!em)return showLogin('Digite seu e-mail acima e clique de novo em "Esqueci minha senha".');
@@ -1023,6 +1109,7 @@ async function start(){
   .on('postgres_changes',{event:'*',schema:'public',table:'faixas'},()=>scheduleReload())
   .on('postgres_changes',{event:'*',schema:'public',table:'solicitacoes'},()=>scheduleReload())
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'historico'},()=>scheduleReload())
+  .on('postgres_changes',{event:'*',schema:'public',table:'placas'},()=>scheduleReload(true))
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'backups'},()=>loadLastBackup())
   .on('postgres_changes',{event:'*',schema:'public',table:'dias'},async()=>{await loadDays();scheduleReload()})
   .subscribe(s=>{liveOn=s==='SUBSCRIBED';if(S.me)renderTop()})}
