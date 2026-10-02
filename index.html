@@ -259,6 +259,8 @@ tr.off td{opacity:.55}
 .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:4px}
 .live.on{background:var(--ok)}
 
+.bk-note{padding:7px 18px;font-size:13px;background:var(--hivis);color:var(--hivis-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:600}
+.bk-note .tbtn{background:#fff;color:#2F2500;border-color:rgba(0,0,0,.2)}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -313,9 +315,12 @@ tr.off td{opacity:.55}
     <button class="tbtn" id="btnOpenAll">Expandir todos</button>
     <label>Colunas <select id="fView"><option value="c">Compacta</option><option value="f">Completa (como a planilha)</option></select></label>
     <button class="tbtn" id="btnCloseAll" style="margin-left:auto">Resumir todos</button>
+    <button class="tbtn" id="btnImport">Importar planilha</button>
+    <button class="tbtn" id="btnBackup">Backup</button>
     <button class="tbtn" id="btnNewDay">Abrir novo dia</button>
   </div>
   <div class="role-note" id="roleNote"></div>
+  <div class="bk-note hide" id="bkNote"></div>
 </header>
 
 <section class="sum hide" id="sum"></section>
@@ -341,8 +346,8 @@ const SUPA_KEY='sb_publishable_0iJyFXb_I-YrdY3dsGALHA_OVoEv9cw';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
 const LKEY='px-programacao-ui-v1';
 
-const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros'};
-const NOROW=new Set(['veiculo','admin']);
+const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros',importar:'importar planilhas',backup:'backup'};
+const NOROW=new Set(['veiculo','admin','importar','backup']);const SIMPLE=new Set(['admin','importar','backup']);
 const FIELD_ACT={hprog:'horarios',cheg:'horarios',hfim:'horarios',peso:'pesovol',vol:'pesovol',cbm:'pesovol',valor:'valor',
  col:'dados',dest:'dados',cidade:'dados',endent:'dados',serv:'dados',pag:'dados',cot:'dados',nf:'docs',oc:'docs',md:'docs',gr:'docs',end_ref:'docs',status:'status',obs:'obs',resp:'resp'};
 const MODES=[['livre','Livre'],['proprias','Só nas próprias'],['proprias_aprov','Próprias livre, outras c/ aprovação'],['aprov','Sempre com aprovação'],['bloq','Bloqueado']];
@@ -384,7 +389,7 @@ function decide(action,row,u=me()){
  const apv=(S.approvers[action]||[]).length>0;
  const approve=()=>apv?{r:'approve'}:{r:'deny',why:`${curto}: precisa de aprovação, mas nenhum aprovador foi cadastrado`};
  if(mode==='livre')return{r:'allow'};
- if(mode==='bloq')return{r:'deny',why:`${pn} não pode alterar ${curto}`.replace('alterar mover','mover').replace('alterar inserir','inserir').replace('alterar excluir','excluir').replace('alterar cadastros','administrar cadastros')};
+ if(mode==='bloq')return{r:'deny',why:`${pn} não pode alterar ${curto}`.replace('alterar mover','mover').replace('alterar inserir','inserir').replace('alterar excluir','excluir').replace('alterar cadastros','administrar cadastros').replace('alterar importar','importar').replace('alterar backup','gerar backup')};
  if(mode==='aprov')return approve();
  if(mode==='proprias')return own?{r:'allow'}:{r:'deny',why:`${pn} só altera ${curto} nas próprias cargas${row&&row.resp?' (esta é de '+row.resp+')':''}`};
  if(mode==='proprias_aprov')return own?{r:'allow'}:approve();
@@ -470,6 +475,7 @@ function renderTop(){
  $('roleNote').innerHTML=`<span class="live ${liveOn?'on':''}" title="${liveOn?'Atualização em tempo real ativa':'Conectando…'}"></span><b>${esc(me().nome)}</b> (${esc(perfil().nome)}) · ${permSummary()}`;
  $('btnAdm').classList.toggle('hide',decide('admin').r!=='allow');
  $('btnNewDay').classList.toggle('hide',decide('veiculo').r!=='allow');
+ $('btnImport').classList.toggle('hide',decide('importar').r!=='allow');$('btnBackup').classList.toggle('hide',decide('backup').r!=='allow');
  const resp=[...new Set(Object.values(S.rows).map(r=>r.resp).filter(Boolean).map(s=>s.trim()))].filter(s=>s.length<20).sort();
  const fr=$('fResp').value;$('fResp').innerHTML='<option value="">Todos</option>'+resp.map(r=>`<option ${r===fr?'selected':''}>${esc(r)}</option>`).join('');
  const fs=$('fSt').value;$('fSt').innerHTML='<option value="">Todos</option>'+STATUS.map(r=>`<option ${r===fs?'selected':''}>${r}</option>`).join('');
@@ -602,6 +608,8 @@ function histItem(e){
  else if(e.tipo==='veículo')what=e.campo?`alterou o veículo: ${chg(e.campo,e.de,e.para)}`:`abriu o veículo <b>${esc(e.para)}</b>`;
  else if(e.tipo==='cadastro')what=`alterou cadastros: ${esc(cadastroResumo(e))}`;
  else if(e.tipo==='cancelou')what='cancelou a própria solicitação';
+ else if(e.tipo==='importou')what=`importou o dia${d.origem?' do arquivo <b>'+esc(d.origem)+'</b>':''}: ${esc(e.para)} linhas${d.substituiu?` (substituiu ${esc(e.de)} cargas)`:''}`;
+ else if(e.tipo==='backup')what=`gerou backup <b>${esc(e.para)}</b> (${d.dias} dia(s), ${d.cargas} linhas)`;
  else if(e.tipo==='bloqueado')what=`tentativa bloqueada: ${esc(d.motivo||'')}`;
  if(d.solicitado_por&&!['aprovou','recusou'].includes(e.tipo))what+=` · solicitado por ${esc(d.solicitado_por)}`;
  if(d.motivo&&e.tipo!=='bloqueado')what+=` · “${esc(d.motivo)}”`;
@@ -647,7 +655,7 @@ function openLane(lid){
 function renderHist(){
  panel='hist';const fu=$('hU')?.value||'',fk=$('hK')?.value||'';
  const items=S.hist.filter(e=>(!fu||e.usuario_id===fu)&&(!fk||e.tipo===fk));
- const kinds=['alterou','moveu','solicitou','aprovou','recusou','cancelou','criou','excluiu','veículo','cadastro','bloqueado'];
+ const kinds=['alterou','moveu','solicitou','aprovou','recusou','cancelou','criou','excluiu','veículo','importou','backup','cadastro','bloqueado'];
  openDrawer(`Histórico do dia ${dayLabel(S.day)}<p>Quem mudou o quê e quando, inclusive o que foi bloqueado. Mostra as últimas 600 ações.</p>`,
   `<div class="chips"><select id="hU"><option value="">Todas as pessoas</option>${S.users.map(u=>`<option value="${u.id}" ${u.id===fu?'selected':''}>${esc(u.nome)}</option>`).join('')}</select>
    <select id="hK"><option value="">Todos os tipos</option>${kinds.map(k=>`<option ${k===fk?'selected':''}>${k}</option>`).join('')}</select></div>
@@ -686,7 +694,7 @@ function renderAdmin(){
  }else{
   body=`<p class="adm-help">Para cada ação, escolha a regra de cada perfil. Quando a regra envolve aprovação, a alteração fica pendente até alguém de um perfil marcado em "Quem aprova" aceitar. Ninguém aprova o próprio pedido. O banco confere essas regras a cada gravação.</p>
   <div class="adm-wrap"><table class="adm"><thead><tr><th>Ação</th>${P.map((p,i)=>`<th><input type="text" data-p="${i}" value="${esc(p.nome)}" aria-label="Nome do perfil" style="font-weight:650"></th>`).join('')}<th>Quem aprova</th></tr></thead><tbody>
-  ${S.acoes.map(a=>{const simple=a.id==='admin',norow=NOROW.has(a.id);return `<tr><td class="act">${esc(a.nome)}${a.detalhe?`<small>${esc(a.detalhe)}</small>`:''}</td>
+  ${S.acoes.map(a=>{const simple=SIMPLE.has(a.id),norow=NOROW.has(a.id);return `<tr><td class="act">${esc(a.nome)}${a.detalhe?`<small>${esc(a.detalhe)}</small>`:''}</td>
    ${P.map(p=>{const v=(draft.perms[p.id]||{})[a.id]||'bloq';const modes=simple?MODES.filter(m=>['livre','bloq'].includes(m[0])):norow?MODES.filter(m=>!m[0].startsWith('proprias')):MODES;
     return `<td><select class="m" data-v="${v}" data-pp="${p.id}" data-a="${a.id}">${modes.map(m=>`<option value="${m[0]}" ${m[0]===v?'selected':''}>${m[1]}</option>`).join('')}</select></td>`}).join('')}
    <td>${simple?'<span class="muted">—</span>':`<div class="apv">${P.map(p=>`<label><input type="checkbox" data-ap="${a.id}" value="${p.id}" ${(draft.approvers[a.id]||[]).includes(p.id)?'checked':''}>${esc(p.nome)}</label>`).join('')}</div>`}</td></tr>`}).join('')}
@@ -713,6 +721,152 @@ async function saveAdmin(){
    else if(['nome','email','setor','perfil_id','nome_programacao','ativo'].some(k=>(o[k]??null)!==(rec[k]??null)))await run(sb.from('usuarios').update(rec).eq('id',u.id),'usuário '+rec.nome)}
  }catch(e){fail(e,e.ctx||'Cadastros')}
  await loadMeta();await loadDay();closeDrawer();renderBoard();if(n)toast(`${n} alteraç${n>1?'ões':'ão'} salva${n>1?'s':''} nos cadastros`);else toast('Nada mudou')}
+
+/* ---------- importação e backup ---------- */
+const XLSX_URL='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+let xlsxP=null;
+function loadXLSX(){if(window.XLSX)return Promise.resolve(window.XLSX);if(!xlsxP)xlsxP=new Promise((ok,ko)=>{const s=document.createElement('script');s.src=XLSX_URL;s.onload=()=>ok(window.XLSX);s.onerror=()=>{xlsxP=null;ko(new Error('Não foi possível carregar o leitor de Excel. Verifique a internet.'))};document.head.appendChild(s)});return xlsxP}
+const COLS=['col','mot','placa','peso','vol','cbm','valor','dest','hprog','cheg','hfim','cidade','nf','cot','serv','pag','oc','md','resp','status','end_ref','gr','obs','endent'];
+const HEAD=['Coleta/Entrega/processo/cliente','Motorista','Placa','Peso','Volume','Cbm / Medidas','Valor R$','Destinatário','Hora programada','chegada','Hora finalizou','Cidade Destino','NF','DI/Cotação / R$ / Prazo','Serviço','Pagador','OC','MD','Responsável','Status','END','GR','Observação','Endereço de entrega'];
+const pad2=n=>String(n).padStart(2,'0');
+function cellText(X,c){
+ if(!c||c.v==null||c.v==='')return'';
+ if(c.t==='n'&&c.z&&X.SSF.is_date(c.z)){const v=c.v;if(v<1){const m=Math.round(v*1440)%1440;return pad2(Math.floor(m/60))+':'+pad2(m%60)}
+  const d=X.SSF.parse_date_code(v);return pad2(d.d)+'/'+pad2(d.m)+((d.H||d.M)?' '+pad2(d.H)+':'+pad2(d.M):'')}
+ if(c.t==='n')return String(Number(c.v.toFixed(3)));
+ if(c.t==='b')return c.v?'VERDADEIRO':'FALSO';
+ if(c.v instanceof Date)return c.v.toLocaleDateString('pt-BR');
+ return String(c.v).trim()}
+function normStatusImp(s){const t=String(s||'').trim();if(STATUS.includes(t))return[t,''];const n=norm(t);
+ if(!n)return['Em definição',''];if(n==='ok')return['OK',''];if(n.startsWith('em defini'))return['Em definição',''];
+ if(n.startsWith('em rota'))return['Em rota',t.length>8?t:''];if(/reprogram|reeprogram|dia seguinte|amanha/.test(n))return['Reprogramado',t];
+ if(n.startsWith('cancel'))return['Cancelado',''];if(n.startsWith('nao'))return['Não realizado',t];return['Ocorrência',t]}
+const SUBNOTE=/^(personalizado|expresso|economico|econômico|fechado)/i;
+const VEH_RE=/^(carreta|bitruck|truck|vuc|vuck|toco|van|fiorino|utilit|hr|3\/4|caminh)/i;
+function parseSheet(X,ws){
+ const ref=ws['!ref'];if(!ref)return null;const rg=X.utils.decode_range(ref);
+ const faixas=[],lemb=[];let cur=null,mode='veh',pool=null,expectVeh=false;
+ const mkCarga=v=>{const o={};COLS.forEach((k,i)=>{if(k!=='mot'&&k!=='placa'&&v[i])o[k]=v[i]});const [st,raw]=normStatusImp(o.status);o.status=st;if(raw)o.obs=(o.obs?o.obs+' | ':'')+raw;return o};
+ for(let r=1;r<=rg.e.r;r++){
+  const v=[];for(let c=0;c<24;c++)v.push(cellText(X,ws[X.utils.encode_cell({r,c})]));
+  if(!v.some(Boolean))continue;
+  const a=v[0],al=a.toLowerCase();
+  const textonly=!!a&&![3,4,6,7,11,12].some(i=>v[i]);
+  const strictNote=!!a&&![3,4,6,7,8,9,11,12,14,18,19].some(i=>v[i]);
+  if(al.startsWith('lembretes')){mode='notes';continue}
+  if(mode==='notes'){if(al.startsWith('em defini'))mode='pool';else if(textonly){lemb.push(a);continue}}
+  if(mode==='pool'){
+   if(textonly){if(SUBNOTE.test(a)&&pool)pool.notas.push(a);else{pool={tipo:'secao',titulo:a,notas:[],cargas:[]};faixas.push(pool)}continue}
+   if(!pool){pool={tipo:'secao',titulo:'Em definição',notas:[],cargas:[]};faixas.push(pool)}
+   pool.cargas.push(mkCarga(v));continue}
+  if(/^sa[ií]da/.test(al)){cur={tipo:'veiculo',evento:a,evento_nota:v.slice(1).filter(Boolean).join(' '),veiculo:'',motorista:'',placa:'',liberar_as:'',cargas:[]};faixas.push(cur);expectVeh=false;continue}
+  if(!cur)continue;
+  if(/^ve[ií]culos/.test(al)){expectVeh=!cur._vok;continue}
+  if(expectVeh||(VEH_RE.test(al)&&!cur._vok)){cur.veiculo=a==='Veículo'?'':a;cur.motorista=v[1];cur.placa=v[2];cur._vok=true;expectVeh=false;continue}
+  if(al.startsWith('liberar motorista')){cur.liberar_as=v[8];continue}
+  cur.cargas.push(strictNote?{col:a,nota:true}:mkCarga(v));
+ }
+ faixas.forEach(f=>delete f._vok);const out=faixas.filter(f=>f.tipo==='veiculo'||f.cargas.length);
+ if(!out.some(f=>f.tipo==='secao'))out.push({tipo:'secao',titulo:'Em definição',notas:[],cargas:[]});
+ return{lembretes:lemb,faixas:out};
+}
+function sheetDate(name){const m=String(name).trim().match(/^(\d{2})(\d{2})(\d{4})$/);if(!m)return null;const d=`${m[3]}-${m[2]}-${m[1]}`;return isNaN(new Date(d))?null:d}
+
+let impState=null;
+async function openImport(){
+ if(decide('importar').r!=='allow')return deny('Seu perfil não pode importar planilhas');panel='imp';impState=null;
+ openDrawer('Importar planilha<p>Use o modelo da planilha de Programação (uma aba por dia, nome da aba DDMMAAAA) ou um arquivo de backup gerado pelo sistema.</p>',
+  `<div class="box"><h4>1. Escolha o arquivo</h4><input type="file" id="impFile" accept=".xlsx,.xls,.xlsm"><div id="impInfo" class="meta" style="margin-top:8px"></div></div><div id="impList"></div>`,
+  `<button class="btn" data-act="close">Fechar</button><button class="btn pri" id="impGo" disabled>Importar selecionados</button>`,true);
+ $('impFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('impInfo').textContent='Lendo o arquivo…';$('impList').innerHTML='';$('impGo').disabled=true;
+  try{const X=await loadXLSX();const wb=X.read(await f.arrayBuffer(),{cellNF:true,cellDates:false});
+   const info=wb.Sheets['_INFO']?X.utils.sheet_to_json(wb.Sheets['_INFO'],{header:1}):null;
+   const days=[];for(const n of wb.SheetNames){const d=sheetDate(n);if(!d)continue;const p=parseSheet(X,wb.Sheets[n]);if(!p)continue;
+    const nc=p.faixas.reduce((a,x)=>a+x.cargas.filter(c=>!c.nota).length,0);days.push({sheet:n,data:d,...p,nc,nv:p.faixas.filter(x=>x.tipo==='veiculo').length})}
+   days.sort((a,b)=>a.data.localeCompare(b.data));
+   if(!days.length){$('impInfo').textContent='Nenhuma aba com nome de data (DDMMAAAA) foi encontrada neste arquivo.';return}
+   const {data:ex}=await sb.from('dias').select('data').in('data',days.map(d=>d.data));const exist=new Set((ex||[]).map(x=>x.data));
+   impState={file:f.name,days,exist};
+   $('impInfo').innerHTML=`${esc(f.name)}: ${days.length} dia${days.length>1?'s':''} encontrado${days.length>1?'s':''}.`+(info?` Arquivo de backup: ${esc(info.map(r=>r.join(' ')).join(' · '))}`:'');
+   $('impList').innerHTML=`<div class="box"><h4>2. Escolha os dias</h4><p class="adm-help">Dias novos são criados. Dias que já existem só são trocados se você marcar "substituir": tudo daquele dia no sistema é apagado e entra o conteúdo da planilha. As solicitações pendentes daquele dia são canceladas.</p>
+    <div class="adm-wrap"><table class="adm"><thead><tr><th>Importar</th><th>Dia</th><th>Veículos</th><th>Linhas de carga</th><th>Situação no sistema</th></tr></thead><tbody>
+    ${days.map((d,i)=>{const e=exist.has(d.data);return `<tr><td><input type="checkbox" data-imp="${i}" ${e?'':'checked'}></td><td><b>${dayLabel(d.data)}/${d.data.slice(0,4)}</b></td><td>${d.nv}</td><td>${d.nc}</td>
+     <td>${e?`<label style="display:flex;gap:6px;align-items:center;color:var(--warn)"><input type="checkbox" data-sub="${i}"> já existe, substituir</label>`:'<span style="color:var(--ok)">novo</span>'}</td></tr>`}).join('')}
+    </tbody></table></div></div><div id="impLog"></div>`;
+   $('impGo').disabled=false;
+  }catch(err){$('impInfo').textContent='Erro ao ler: '+err.message}};
+ $('impGo').onclick=async()=>{if(!impState)return;const todo=impState.days.map((d,i)=>({d,i})).filter(({i})=>document.querySelector(`[data-imp="${i}"]`)?.checked);
+  if(!todo.length)return toast('Marque pelo menos um dia',true);
+  const subs=todo.filter(({d,i})=>impState.exist.has(d.data));
+  for(const {d,i} of subs)if(!document.querySelector(`[data-sub="${i}"]`)?.checked)return toast(`O dia ${dayLabel(d.data)} já existe. Marque "substituir" ou desmarque o dia.`,true);
+  if(subs.length&&!confirm(`Substituir ${subs.length} dia(s) que já existem? O conteúdo atual desses dias será trocado pelo da planilha.`))return;
+  $('impGo').disabled=true;const log=$('impLog');log.innerHTML='<div class="box"><h4>3. Resultado</h4><ul class="hist" id="impRes"></ul></div>';
+  let okN=0;for(const {d} of todo){const li=document.createElement('li');li.innerHTML=`<span class="av">${dayLabel(d.data).slice(0,2)}</span><div>${dayLabel(d.data)}: importando…</div>`;$('impRes').appendChild(li);
+   const{data,error}=await sb.rpc('importar_dia',{p_data:d.data,p_lembretes:d.lembretes,p_faixas:d.faixas,p_substituir:impState.exist.has(d.data),p_origem:impState.file});
+   li.lastChild.innerHTML=error?`<span style="color:var(--risk)">${dayLabel(d.data)}: ${esc(error.message)}</span>`:`${dayLabel(d.data)}: ${data.faixas} veículos/seções e ${data.linhas} linhas importadas${data.substituiu?` (substituiu ${data.antes} cargas)`:''}`;
+   if(!error)okN++}
+  await loadDays();if(todo.some(({d})=>d.data===S.day)||!S.day){if(!S.day)S.day=S.days[0]?.data||null;await loadDay()}renderBoard();
+  toast(`${okN} de ${todo.length} dia(s) importado(s)`,okN<todo.length)};
+}
+
+/* backup */
+let lastBackup=null;
+async function loadLastBackup(){try{const{data}=await sb.from('backups').select('*').order('ts',{ascending:false}).limit(1);lastBackup=data&&data[0]||null}catch(e){lastBackup=null}renderBackupNote()}
+function backupPending(){const now=new Date(),start=new Date(now);start.setHours(now.getHours()<12?0:12,0,0,0);return !lastBackup||new Date(lastBackup.ts)<start}
+function renderBackupNote(){const el=$('bkNote');if(!el)return;const can=S.me&&decide('backup').r==='allow';
+ if(!can||!backupPending()){el.classList.add('hide');return}
+ el.classList.remove('hide');el.innerHTML=`Backup ${new Date().getHours()<12?'da manhã':'da tarde'} pendente${lastBackup?` · último: ${when(lastBackup.ts)} por ${esc(lastBackup.usuario_nome||'?')}`:' · nenhum backup feito ainda'} <button class="tbtn" id="bkNow">Fazer backup agora</button>`;
+ $('bkNow').onclick=openBackup}
+async function fetchAll(table,build){const out=[];for(let from=0;;from+=1000){const{data,error}=await build(sb.from(table).select('*')).range(from,from+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out}
+function openBackup(){
+ if(decide('backup').r!=='allow')return deny('Seu perfil não gera backup');panel='bk';
+ openDrawer('Backup<p>Gera um arquivo Excel no modelo da planilha (uma aba por dia), que pode ser importado de volta em "Importar planilha". O arquivo também leva os cadastros, as solicitações e o histórico.</p>',
+  `<div class="box"><h4>Último backup</h4><div class="meta">${lastBackup?`${when(lastBackup.ts)} por ${esc(lastBackup.usuario_nome||'?')} · ${lastBackup.dias} dia(s), ${lastBackup.cargas} linhas · ${esc(lastBackup.arquivo||'')}`:'Nenhum backup registrado ainda.'}</div></div>
+   <div class="box"><h4>O que incluir</h4><div class="row2"><select id="bkScope"><option value="all">Todos os dias</option><option value="30">Últimos 30 dias</option><option value="7">Últimos 7 dias</option><option value="day">Só o dia aberto (${dayLabel(S.day)})</option></select>
+   <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="bkHist" checked> incluir histórico</label></div>
+   <p class="adm-help" style="margin-top:10px">Guarde o arquivo numa pasta segura, de preferência no OneDrive da empresa. Ele contém dados de clientes, então não envie por e-mail ou WhatsApp para fora da Portoex.</p></div><div id="bkLog" class="meta"></div>`,
+  `<button class="btn" data-act="close">Fechar</button><button class="btn pri" id="bkGo">Gerar e baixar backup</button>`);
+ $('bkGo').onclick=async()=>{const btn=$('bkGo');btn.disabled=true;const say=t=>$('bkLog').textContent=t;
+  try{say('Carregando o gerador de Excel…');const X=await loadXLSX();
+   const scope=$('bkScope').value;let dias=S.days.map(d=>d.data);
+   if(scope==='day')dias=[S.day];else if(scope!=='all'){const lim=new Date();lim.setDate(lim.getDate()-(+scope));const ls=lim.toISOString().slice(0,10);dias=dias.filter(d=>d>=ls)}
+   if(!dias.length){say('Nenhum dia no período.');btn.disabled=false;return}
+   say('Baixando veículos…');const diasRows=await fetchAll('dias',q=>q.in('data',dias).order('data'));
+   const faixas=await fetchAll('faixas',q=>q.in('data',dias).order('data').order('ordem'));
+   const fids=faixas.map(f=>f.id),cargas=[];
+   for(let i=0;i<fids.length;i+=150){say(`Baixando cargas… ${cargas.length}`);cargas.push(...await fetchAll('cargas',q=>q.in('faixa_id',fids.slice(i,i+150)).eq('excluida',false).order('ordem')))}
+   say('Baixando cadastros e solicitações…');
+   const sols=await fetchAll('solicitacoes',q=>q.in('data',dias).order('criado_em'));
+   const hist=$('bkHist').checked?await fetchAll('historico',q=>q.or(`data.in.(${dias.join(',')}),data.is.null`).order('ts')):[];
+   say('Montando o arquivo…');
+   const wb=X.utils.book_new();const byF={};cargas.forEach(c=>(byF[c.faixa_id]=byF[c.faixa_id]||[]).push(c));
+   let nLin=0;
+   for(const dr of diasRows){const d=dr.data,rows=[HEAD,[]];const fs=faixas.filter(f=>f.data===d);
+    for(const f of fs.filter(f=>f.tipo==='veiculo')){
+     const ev=f.evento&&/^sa[ií]da/i.test(f.evento.trim())?f.evento:('Saída '+(f.evento||'a definir'));
+     rows.push([ev,f.evento_nota||'']);rows.push(['Veículos - Motoristas',f.motorista||'']);rows.push([f.veiculo||'Veículo',f.motorista||'',f.placa||'']);
+     for(const c of byF[f.id]||[]){nLin++;rows.push(c.nota?[c.col||'']:COLS.map(k=>k==='mot'?(f.motorista||''):k==='placa'?(f.placa||''):(c[k]??'')))}
+     rows.push(['liberar motorista assim que chegar na base',f.motorista||'',f.placa||'','','','','','',f.liberar_as||'']);rows.push([]);rows.push([])}
+    rows.push(['LEMBRETES MOTORISTAS']);(dr.lembretes||[]).forEach(l=>rows.push([l]));
+    const secs=fs.filter(f=>f.tipo==='secao');
+    if(!secs.length||!/^em defini/i.test(secs[0].titulo||''))rows.push(['Em definição']);
+    for(const f of secs){rows.push([f.titulo||'Seção']);(f.notas||[]).forEach(n=>rows.push([n]));
+     for(const c of byF[f.id]||[]){if(c.nota)continue;nLin++;rows.push(COLS.map(k=>k==='mot'||k==='placa'?'':(c[k]??'')))}}
+    const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=HEAD.map((h,i)=>({wch:i===0?60:i===7?34:i===22||i===23?40:14}));
+    X.utils.book_append_sheet(wb,ws,d.slice(8,10)+d.slice(5,7)+d.slice(0,4))}
+   const now=new Date();
+   X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet([['Backup da Programação Portoex'],['Gerado em',now.toLocaleString('pt-BR')],['Por',me().nome],['Dias',diasRows.length],['Linhas de carga',nLin],[''],['Para restaurar: no sistema, Importar planilha > escolher este arquivo.']]),'_INFO');
+   const sheetOf=(arr,name)=>X.utils.book_append_sheet(wb,X.utils.json_to_sheet(arr.length?arr.map(o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[k,v!==null&&typeof v==='object'?JSON.stringify(v):v]))):[{vazio:''}]),name);
+   sheetOf(S.users,'_USUARIOS');sheetOf(S.profiles,'_PERFIS');
+   sheetOf(Object.entries(S.perms).flatMap(([p,m])=>Object.entries(m).map(([a,mo])=>({perfil_id:p,acao_id:a,modo:mo}))),'_PERMISSOES');
+   sheetOf(Object.entries(S.approvers).flatMap(([a,ps])=>ps.map(p=>({acao_id:a,perfil_id:p}))),'_APROVADORES');
+   sheetOf(sols,'_SOLICITACOES');if(hist.length)sheetOf(hist.slice(-200000),'_HISTORICO');
+   const fname=`backup_programacao_${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}_${pad2(now.getHours())}h${pad2(now.getMinutes())}.xlsx`;
+   X.writeFile(wb,fname,{compression:true});
+   const{error}=await sb.rpc('registrar_backup',{p_dias:diasRows.length,p_cargas:nLin,p_arquivo:fname});if(error)fail(error,'Registrar backup');
+   await loadLastBackup();say(`Pronto: ${fname} (${diasRows.length} dia(s), ${nLin} linhas). Confira a pasta de downloads.`);toast('Backup gerado');
+  }catch(e){fail(e,'Backup');say('Falhou: '+(e.message||e))}btn.disabled=false};
+}
 
 /* ---------- novo dia ---------- */
 function openNewDay(){
@@ -774,7 +928,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 $('fView').onchange=e=>{UI.view=e.target.value;saveUI();renderBoard()};
 $('btnOpenAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=true);saveUI();renderBoard()};
 $('btnCloseAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=false);saveUI();renderBoard();window.scrollTo({top:0})};
-$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=openNewDay;
+$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=openNewDay;$('btnImport').onclick=openImport;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
 $('btnOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('bulkClear').onclick=()=>{sel.clear();renderBoard()};
 $('bulkGo').onclick=async()=>{const to=$('bulkTo').value;if(!to)return toast('Escolha o destino',true);const ids=[...sel];sel.clear();await moveRows(ids,to,$('bulkWhy').value.trim());$('bulkWhy').value=''};
@@ -810,12 +964,13 @@ async function start(){
  if(!S.me){await sb.auth.signOut();return showLogin(`O login ${email} existe, mas não está cadastrado ou está inativo na Programação. Fale com a Coordenação.`)}
  $('login').classList.add('hide');['app-top','sum'].forEach(id=>$(id).classList.remove('hide'));
  try{await loadDays();const saved=localStorage.getItem(LKEY+'-day');S.day=S.days.some(d=>d.data===saved)?saved:(S.days[0]?.data||null);await loadDay()}catch(e){fail(e,'Carregar')}
- $('loading').classList.add('hide');renderBoard();
+ $('loading').classList.add('hide');renderBoard();loadLastBackup();
  if(!channel){channel=sb.channel('programacao')
   .on('postgres_changes',{event:'*',schema:'public',table:'cargas'},()=>scheduleReload())
   .on('postgres_changes',{event:'*',schema:'public',table:'faixas'},()=>scheduleReload())
   .on('postgres_changes',{event:'*',schema:'public',table:'solicitacoes'},()=>scheduleReload())
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'historico'},()=>scheduleReload())
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'backups'},()=>loadLastBackup())
   .on('postgres_changes',{event:'*',schema:'public',table:'dias'},async()=>{await loadDays();scheduleReload()})
   .subscribe(s=>{liveOn=s==='SUBSCRIBED';if(S.me)renderTop()})}
 }
