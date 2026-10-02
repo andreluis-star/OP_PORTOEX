@@ -362,6 +362,11 @@ select.prio:disabled{opacity:1;cursor:not-allowed}
 .gprio{margin-left:8px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;padding:1px 4px;background:var(--surface);color:var(--muted);max-width:150px}
 #bulkPrio{max-width:150px}
 
+.addlane{margin:-4px 0 14px;display:flex}
+.addlane .btn,.section-head .btn{border-style:dashed;color:var(--navy);font-weight:700}
+.section-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:26px 0 0}
+.section-head .section-title{margin:0}
+.section-head+.section-sub{margin-top:6px}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -712,7 +717,7 @@ function laneHTML(l){
     ${vd!=='deny'?`<button class="icon" data-act="lane" data-lane="${l.id}">Editar veículo</button>`:''}
     <button class="collapse" data-act="toggle" data-lane="${l.id}" aria-expanded="true">Resumir ▴</button>
     <div class="evt">${esc(l.evento||'')}${l.evento_nota?' · '+esc(l.evento_nota):''}${l.liberar_as?' · liberar motorista às '+esc(l.liberar_as):''}</div>`
-  :`<h2>${esc(l.titulo)}</h2><span class="gauge">${real.length} NF · ${vol} vol · ${brl(val)}</span><button class="collapse" data-act="toggle" data-lane="${l.id}" aria-expanded="true">Resumir ▴</button>${l.notas&&l.notas.length?`<div class="evt">${l.notas.map(esc).join(' · ')}</div>`:''}`;
+  :`<h2>${esc(l.titulo)}</h2><span class="gauge">${real.length} NF · ${vol} vol · ${brl(val)}</span>${prioCounts(real)}${vd==='allow'?`<button class="icon" data-act="lane" data-lane="${l.id}">Editar agrupamento</button>`:''}<button class="collapse" data-act="toggle" data-lane="${l.id}" aria-expanded="true">Resumir ▴</button>${l.notas&&l.notas.length?`<div class="evt">${l.notas.map(esc).join(' · ')}</div>`:''}`;
  return `<section class="lane ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}"><div class="spine">${spine}</div>${plateHTML(l)}
   <div class="lbody"><div class="lhead">${head}</div>
   <div class="rows"><div class="tbl">${real.length?(UI.view==='f'?HDR_F:HDR_C):''}${body||'<div class="empty">Sem cargas. Arraste cargas para cá.</div>'}</div></div>
@@ -728,9 +733,10 @@ function renderBoard(){
   <span class="k"><b>${cnt('OK')}</b> OK</span><span class="k"><b>${cnt('Em definição')}</b> em definição</span>
   <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>${RECDAY===S.day?`<span class="k"><b style="color:var(--plum)">${Object.values(RM).filter(m=>!m.alert).length}</b> de dias anteriores</span><span class="k"><b style="color:var(--risk)">${Object.values(RM).filter(m=>m.alert).length}</b> voltaram após veículo</span>`:'<span class="k">verificando dias anteriores…</span>'}`:`<h1>Nenhum dia aberto</h1>`;
  $('notes').innerHTML=(dia&&dia.lembretes&&dia.lembretes.length?`<span class="lbl">Lembretes motoristas:</span>`+dia.lembretes.map(n=>`<span class="n">${esc(n)}</span>`).join(''):'')+`<span class="plegend"><span class="lbl">Carregamento:</span>${PRIO.map(p=>`<i class="pb-${p[0]}" title="${p[3]}">${p[1]} ${p[2]}</i>`).join('')}</span>`;
- const pools=S.lanes.filter(l=>l.tipo==='secao');
+ const pools=S.lanes.filter(l=>l.tipo==='secao'),canLane=decide('veiculo').r==='allow';
  $('board').innerHTML=!S.day?`<div class="empty">Ainda não há dias cadastrados. ${decide('veiculo').r==='allow'?'Use "Abrir novo dia" para começar.':'Aguarde a Programação abrir o dia.'}</div>`:
-  veh.map(laneHTML).join('')+(pools.length?`<h2 class="section-title">Em definição, terceiros e filial</h2><p class="section-sub">Cargas ainda sem veículo próprio. Arraste daqui para um veículo quando a programação fechar.</p>`+pools.map(laneHTML).join(''):'');
+  veh.map(laneHTML).join('')+(canLane?`<div class="addlane"><button class="btn" data-act="newlane" data-tipo="veiculo">+ Novo veículo</button></div>`:'')+
+  `<div class="section-head"><h2 class="section-title">Em definição, terceiros e filial</h2>${canLane?`<button class="btn" data-act="newlane" data-tipo="secao">+ Novo agrupamento</button>`:''}</div><p class="section-sub">Cargas ainda sem veículo próprio. Arraste daqui para um veículo quando a programação fechar, ou crie um agrupamento novo para juntar cargas.</p>`+pools.map(laneHTML).join('');
  renderBulk();renderCounts();
  if(S.day&&RECDAY!==S.day)loadRec();
 }
@@ -738,7 +744,7 @@ function renderBulk(){
  const b=$('bulk');sel=new Set([...sel].filter(id=>S.rows[id]));
  if(!sel.size){b.classList.remove('on');return}
  b.classList.add('on');$('bulkN').textContent=`${sel.size} selecionada${sel.size>1?'s':''}`;
- const cur=$('bulkTo').value;$('bulkTo').innerHTML='<option value="">Mover para…</option>'+S.lanes.map(l=>`<option value="${l.id}" ${l.id===cur?'selected':''}>${esc(laneName(l))}</option>`).join('');
+ const cur=$('bulkTo').value;$('bulkTo').innerHTML='<option value="">Mover para…</option>'+S.lanes.map(l=>`<option value="${l.id}" ${l.id===cur?'selected':''}>${esc(laneName(l))}</option>`).join('')+(decide('veiculo').r==='allow'?`<option value="__new" ${cur==='__new'?'selected':''}>➕ Novo veículo ou agrupamento…</option>`:'');
  const m=(S.perms[me().perfil_id]||{}).mover;$('bulkGo').textContent=m==='livre'?'Mover':m==='bloq'?'Mover (sem permissão)':'Mover / solicitar';
 }
 
@@ -775,6 +781,7 @@ function histItem(e){
  const target=e.registro_id?`<div class="when">${esc(rowLabel(e.registro_id))}</div>`:'';
  return `<li class="k-${esc(e.tipo)}" ${e.registro_id&&S.rows[e.registro_id]?`data-open="${e.registro_id}"`:''}><span class="av">${initials(e.usuario_nome)}</span><div><div class="what"><b>${esc(e.usuario_nome)}</b> ${what}</div>${target}<div class="when">${when(e.ts)}${e.perfil_nome?' · '+esc(e.perfil_nome):''}</div></div></li>`}
 
+const mvdAllow=r=>decide('mover',r).r==='allow';
 async function openRow(id){
  const r=S.rows[id];if(!r)return;panel='row';const l=laneOf(id);
  const fields=F.map(([k,lab,cls])=>{const dd=decideField(r,k),v=r[k]||'',dis=dd.r==='deny'?'disabled':'';
@@ -783,7 +790,7 @@ async function openRow(id){
   else if(['obs','cot','col','endent'].includes(k))inp=`<textarea data-f="${k}" ${dis}>${esc(v)}</textarea>`;else inp=`<input data-f="${k}" value="${esc(v)}" ${dis}>`;
   const tag=dd.r==='deny'?`<span class="lock" title="${esc(dd.why)}">bloqueado</span>`:dd.r==='approve'?`<span class="ap">com aprovação</span>`:'';
   return `<div class="fld ${cls||''}"><label><span>${esc(lab)}</span>${tag}</label>${inp}</div>`}).join('');
- const opts=S.lanes.filter(x=>x!==l).map(x=>`<option value="${x.id}">${esc(laneName(x))}</option>`).join('');
+ const opts=S.lanes.filter(x=>x!==l).map(x=>`<option value="${x.id}">${esc(laneName(x))}</option>`).join('')+(decide('veiculo').r==='allow'&&mvdAllow(r)?`<option value="__new">➕ Novo veículo ou agrupamento…</option>`:'');
  const mvd=decide('mover',r),exd=decide('excluir',r);
  const mv=mvd.r!=='deny'?`<div class="box"><h4>${mvd.r==='allow'?'Mover para outro veículo':'Solicitar troca de veículo (vai para aprovação)'}</h4><div class="row2"><select id="mvTo"><option value="">Escolha o destino…</option>${opts}</select><button class="btn pri" id="mvGo">${mvd.r==='allow'?'Mover':'Solicitar'}</button></div></div>`:'';
  const pq=S.reqs.filter(q=>q.estado==='pendente'&&(q.carga_ids||[]).includes(id));
@@ -795,13 +802,22 @@ async function openRow(id){
  $('saveRow').onclick=async()=>{const ch={};document.querySelectorAll('#dBody [data-f]').forEach(el=>{if(!el.disabled)ch[el.dataset.f]=el.value.trim()});
   $('saveRow').disabled=true;const {ok,asked}=await applyEdits(id,ch,$('why').value.trim());if(ok)flash([id]);
   toast(ok||asked?[ok?`${ok} alteraç${ok>1?'ões':'ão'} salva${ok>1?'s':''}`:'',asked?`${asked} enviada${asked>1?'s':''} para aprovação`:''].filter(Boolean).join(' · '):'Nada mudou');if(S.rows[id])openRow(id);else closeDrawer()};
- const mg=$('mvGo');if(mg)mg.onclick=async()=>{const to=$('mvTo').value;if(!to)return toast('Escolha o veículo de destino',true);await moveRows([id],to,$('why').value.trim());if(S.rows[id])openRow(id)};
+ const mg=$('mvGo');if(mg)mg.onclick=async()=>{const to=$('mvTo').value;if(!to)return toast('Escolha o veículo de destino',true);if(to==='__new')return openNewLane({moveIds:[id],why:$('why').value.trim()});await moveRows([id],to,$('why').value.trim());if(S.rows[id])openRow(id)};
  const dl=$('delRow');if(dl)dl.onclick=()=>{if(confirm(exd.r==='allow'?'Excluir esta carga? Ela sai da programação, mas fica registrada no histórico.':'Enviar pedido de exclusão para aprovação?'))delRow(id,$('why').value.trim())};
  try{const h=await q(sb.from('historico').select('*').eq('registro_id',id).order('ts',{ascending:false}).limit(100));
   if(panel==='row'&&$('rowHist'))$('rowHist').outerHTML=h.length?`<ul class="hist">${h.map(histItem).join('')}</ul>`:'<div class="empty">Nenhuma alteração registrada.</div>'}catch(e){}
 }
+function openSecao(l){
+ openDrawer(`Editar agrupamento<p>${esc(l.titulo||'')}</p>`,
+  `<div class="form"><div class="fld full"><label>Nome do agrupamento</label><input id="seTit" value="${esc(l.titulo||'')}"></div>
+   <div class="fld full"><label>Observações (uma por linha)</label><textarea id="seNotas">${esc((l.notas||[]).join('\n'))}</textarea></div></div>`,
+  `<button class="btn" data-act="close">Fechar</button><button class="btn pri" id="seGo">Salvar</button>`);
+ $('seGo').onclick=async()=>{const t=$('seTit').value.trim();if(!t)return toast('O nome não pode ficar vazio',true);
+  const notas=$('seNotas').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const{error}=await sb.from('faixas').update({titulo:t,notas}).eq('id',l.id);if(error)return fail(error,'Agrupamento');await loadDay();renderBoard();closeDrawer();toast('Agrupamento atualizado')}}
 function openLane(lid){
  const l=laneById(lid);panel='lane';const vd=decide('veiculo');
+ if(l.tipo==='secao')return openSecao(l);
  const hist=S.hist.filter(e=>e.tipo==='veículo'&&e.registro_id===lid);
  openDrawer(`Editar veículo<p>${esc(laneName(l))}${vd.r==='approve'?' · alterações vão para aprovação':''}</p>`,
   `<div class="form">${LANE_F.map(k=>`<div class="fld full"><label>${LABEL[k]}</label><input data-lf="${k}" value="${esc(l[k]||'')}"></div>`).join('')}</div>
@@ -1121,6 +1137,44 @@ async function addFromBrudam(id){const c=BR.rows.find(x=>x.id_coleta===id);if(!c
   hprog:c.hora_ini||null,endent:c.endereco_entrega||null,resp:me().nome_programacao||me().nome,status:'Em definição',obs:`Brudam coleta ${c.id_coleta}`};
  const{error}=await sb.from('cargas').insert(rec);if(error)return fail(error,'Adicionar');await loadDay();renderBoard();renderBrudam();toast(`Coleta ${c.id_coleta} adicionada em ${laneName(l)}`)}
 
+
+/* ---------- novo veículo / agrupamento ---------- */
+function openNewLane(opts={}){
+ const d=decide('veiculo');if(d.r!=='allow')return deny(d.why||'Seu perfil não cria veículos ou agrupamentos');
+ panel='newlane';const ids=opts.moveIds||[],tipo=opts.tipo||'veiculo';
+ const veis=[...new Set(S.lanes.map(l=>l.veiculo).filter(Boolean).concat(['Carreta - 27.000kgs','Bitruck - 16.000kgs','Truck - 12.000kgs','Toco - 7.000kgs','Vuc - 3.500kgs','Van - 1.500kgs']))].sort();
+ openDrawer(`Novo veículo ou agrupamento · ${dayLabel(S.day)}<p>${ids.length?`As ${ids.length} carga(s) selecionada(s) serão movidas para ele assim que for criado.`:'Cria um novo bloco na programação do dia para agrupar cargas.'}</p>`,
+  `<div class="tabs" role="tablist"><button role="tab" data-nlt="veiculo" aria-selected="${tipo==='veiculo'}">Veículo</button><button role="tab" data-nlt="secao" aria-selected="${tipo==='secao'}">Agrupamento sem veículo</button></div>
+   ${tipo==='veiculo'?`<div class="form">
+    <div class="fld"><label>Horário de saída</label><input type="time" id="nlHora" value="08:00"></div>
+    <div class="fld"><label>Liberar motorista às</label><input type="time" id="nlLib"></div>
+    <div class="fld"><label>Motorista</label><input id="nlMot" placeholder="ex.: Renato"></div>
+    <div class="fld"><label>Placa(s)</label><input id="nlPlaca" list="dlPlacas" placeholder="ex.: QSU6I78 / SUR8B97" style="text-transform:uppercase"></div>
+    <div class="fld full"><label>Veículo e capacidade</label><input id="nlVei" list="dlVeis" placeholder="ex.: Carreta - 27.000kgs - 90cbm"></div>
+    <div class="fld full"><label>Descrição da saída (opcional)</label><input id="nlDesc" placeholder="ex.: Carreta Agregado - Transferência SP"></div>
+    <datalist id="dlVeis">${veis.map(v=>`<option value="${esc(v)}">`).join('')}</datalist>
+    <datalist id="dlPlacas">${S.placas.filter(p=>p.ativo).map(p=>`<option value="${esc(p.placa)}">${esc(FROTA_N[p.tipo])}</option>`).join('')}</datalist>
+    <p class="adm-help full" id="nlFrota"></p></div>`
+   :`<div class="form"><div class="fld full"><label>Nome do agrupamento</label><input id="nlTit" placeholder="ex.: Fechar Terceiro - Curitiba / Transferência Filial SP"></div>
+    <div class="fld full"><label>Observações (uma por linha, opcional)</label><textarea id="nlNotas" placeholder="ex.: EXPRESSO - 2"></textarea></div></div>`}`,
+  `<button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="nlGo">${ids.length?'Criar e mover':'Criar'}</button>`);
+ document.querySelectorAll('[data-nlt]').forEach(b=>b.onclick=()=>openNewLane({...opts,tipo:b.dataset.nlt}));
+ const pl=$('nlPlaca');if(pl)pl.oninput=()=>{const ps=extractPlates(pl.value);$('nlFrota').innerHTML=ps.length?`Classificação: <span class="ptag ${FROTA_C[frotaOfPlates(ps)]}">${FROTA_N[frotaOfPlates(ps)]}</span>`:''};
+ $('nlGo').onclick=async()=>{const b=$('nlGo');let rec;
+  if(tipo==='veiculo'){const h=$('nlHora').value,[hh,mm]=(h||'').split(':');if(!h)return toast('Informe o horário de saída',true);
+   const desc=$('nlDesc').value.trim();
+   rec={data:S.day,tipo:'veiculo',ordem:Math.max(0,...S.lanes.filter(l=>l.tipo==='veiculo').map(l=>+l.ordem||0))+1,
+    evento:`Saída as ${hh}${mm&&mm!=='00'?':'+mm:''}h${desc?' - '+desc:''}`,motorista:$('nlMot').value.trim()||null,placa:$('nlPlaca').value.trim().toUpperCase()||null,
+    veiculo:$('nlVei').value.trim()||null,liberar_as:$('nlLib').value||null}}
+  else{const t=$('nlTit').value.trim();if(!t)return toast('Dê um nome ao agrupamento',true);
+   rec={data:S.day,tipo:'secao',ordem:Math.max(0,...S.lanes.map(l=>+l.ordem||0))+1,titulo:t,notas:$('nlNotas').value.split('\n').map(s=>s.trim()).filter(Boolean)}}
+  b.disabled=true;const{data,error}=await sb.from('faixas').insert(rec).select().single();b.disabled=false;
+  if(error)return fail(error,'Criar');UI.open[data.id]=true;saveUI();await loadDay();closeDrawer();renderBoard();
+  toast(`${tipo==='veiculo'?'Veículo':'Agrupamento'} criado: ${laneName(laneById(data.id)||data)}`);
+  if(ids.length){sel.clear();await moveRows(ids,data.id,opts.why||'')}
+  requestAnimationFrame(()=>document.querySelector(`.lane[data-lane="${data.id}"]`)?.scrollIntoView({block:'center'}))};
+}
+
 /* ---------- novo dia ---------- */
 function openNewDay(preset){
  if(decide('veiculo').r!=='allow')return deny('Seu perfil não abre dias');panel='newday';
@@ -1174,7 +1228,8 @@ document.addEventListener('click',async e=>{
  if(t.dataset.rq){if(t.dataset.rq==='cancel')cancelReq(t.dataset.id);else decideReq(t.dataset.id,t.dataset.rq==='ok');return}
  const a=t.dataset.act;
  if(a==='toggle'){const k=t.dataset.lane;UI.open[k]=!UI.open[k];saveUI();renderBoard();if(UI.open[k])requestAnimationFrame(()=>document.querySelector(`.lane[data-lane="${k}"]`)?.scrollIntoView({block:'nearest'}))}
- else if(a==='lane')openLane(t.dataset.lane);else if(a==='close')closeDrawer();else if(a==='new')newRow(t.dataset.lane);
+ else if(a==='lane')openLane(t.dataset.lane);
+ else if(a==='newlane')openNewLane({tipo:t.dataset.tipo});else if(a==='close')closeDrawer();else if(a==='new')newRow(t.dataset.lane);
 });
 document.addEventListener('change',async e=>{const t=e.target;
  if(t.id==='dayPick'&&t.value){await selectDay(t.value);return}
@@ -1198,9 +1253,10 @@ $('btnCloseAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=false);saveUI();r
 $('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=()=>openNewDay();$('btnImport').onclick=openImport;$('btnBrudam').onclick=openBrudam;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
 $('btnPass').onclick=openPass;
 $('btnOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
+$('bulkTo').onchange=e=>{if(e.target.value==='__new'){const ids=[...sel];e.target.value='';openNewLane({moveIds:ids,why:$('bulkWhy').value.trim()})}};
 $('bulkPrio').onchange=async e=>{const v=e.target.value;if(!v)return;const ids=[...sel];let ok=0,ask=0;for(const i of ids){const r=await applyEdits(i,{prioridade:v==='-'?'':v},'');ok+=r.ok;ask+=r.asked}e.target.value='';flash(ids);toast(`Prioridade aplicada em ${ok} carga(s)${ask?` · ${ask} para aprovação`:''}`)};
 $('bulkClear').onclick=()=>{sel.clear();renderBoard()};
-$('bulkGo').onclick=async()=>{const to=$('bulkTo').value;if(!to)return toast('Escolha o destino',true);const ids=[...sel];sel.clear();await moveRows(ids,to,$('bulkWhy').value.trim());$('bulkWhy').value=''};
+$('bulkGo').onclick=async()=>{const to=$('bulkTo').value;if(!to)return toast('Escolha o destino',true);if(to==='__new'){const ids=[...sel];$('bulkTo').value='';return openNewLane({moveIds:ids,why:$('bulkWhy').value.trim()})}const ids=[...sel];sel.clear();await moveRows(ids,to,$('bulkWhy').value.trim());$('bulkWhy').value=''};
 let dragIds=null;
 document.addEventListener('dragstart',e=>{const t=e.target.closest('[data-drag]');if(!t)return;
  if(t.dataset.drag==='row'){const id=t.dataset.id;dragIds=sel.has(id)?[...sel]:[id]}
