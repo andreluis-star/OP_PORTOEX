@@ -339,6 +339,10 @@ body{font-family:var(--font);font-variation-settings:normal}
 .pwbox .pw{flex:1;min-width:200px}
 .pwbox input[type=text],.pwbox input[type=password]{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 9px;font-size:15px}
 .lg-ok{color:var(--ok);font-weight:600}.lg-no{color:var(--risk);font-weight:600}
+.tbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+table.adm.br td{vertical-align:top}
+tr.br-falta td{background:var(--risk-soft)}
+tr.br-div td{background:var(--warn-soft)}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -397,6 +401,7 @@ body{font-family:var(--font);font-variation-settings:normal}
     <button class="tbtn" id="btnOpenAll">Expandir todos</button>
     <label>Colunas <select id="fView"><option value="c">Compacta</option><option value="f">Completa (como a planilha)</option></select></label>
     <button class="tbtn" id="btnCloseAll" style="margin-left:auto">Resumir todos</button>
+    <button class="tbtn" id="btnBrudam">Coletas Brudam</button>
     <button class="tbtn" id="btnImport">Importar planilha</button>
     <button class="tbtn" id="btnBackup">Backup</button>
     <button class="tbtn" id="btnNewDay">Abrir novo dia</button>
@@ -1020,6 +1025,70 @@ function openBackup(){
   }catch(e){fail(e,'Backup');say('Falhou: '+(e.message||e))}btn.disabled=false};
 }
 
+/* ---------- coletas Brudam (somente conferência) ---------- */
+let BR={rows:[],log:null,ok:true,erro:null,day:null,filtro:'todas'};
+const nfNum=s=>String(s||'').replace(/\D/g,'').replace(/^0+/,'');
+async function loadBrudam(){
+ if(!S.day)return;const day=S.day;
+ try{const lim=new Date(day+'T12:00:00');lim.setDate(lim.getDate()-10);const ls=lim.toISOString().slice(0,10);
+  const [rows,log]=await Promise.all([
+   q(sb.from('brudam_coletas').select('id_coleta,status_brudam,data_emissao,data_coleta,hora_ini,hora_fim,cliente,local_coleta,endereco_coleta,cidade_coleta,local_entrega,endereco_entrega,cidade_entrega,responsavel,valor,peso,volumes,nfs,minutas,placa,ultima_ocorrencia,ultima_ocorrencia_obs,ultima_ocorrencia_data,atualizado_em').or(`data_coleta.eq.${day},and(status_brudam.eq.1,data_coleta.gte.${ls},data_coleta.lt.${day})`).order('hora_ini').range(0,1999)),
+   q(sb.from('brudam_sync_log').select('*').order('ts',{ascending:false}).limit(1))]);
+  BR={...BR,rows,log:log[0]||null,ok:true,erro:null,day};
+ }catch(e){BR={...BR,rows:[],log:null,ok:false,erro:e.message,day}}
+}
+function brudamMatch(){
+ const nfIdx=new Map(),colIdx=new Map();
+ for(const [id,r] of Object.entries(S.rows)){if(r.nota)continue;
+  for(const m of String(r.nf||'').match(/\d{3,}/g)||[]){const k=nfNum(m);if(!nfIdx.has(k))nfIdx.set(k,new Set());nfIdx.get(k).add(id)}
+  for(const m of (String(r.col||'')+' '+String(r.obs||'')).matchAll(/coleta\D{0,6}(\d{4,})/gi)){const k=nfNum(m[1]);if(!colIdx.has(k))colIdx.set(k,new Set());colIdx.get(k).add(id)}}
+ return BR.rows.map(c=>{const ids=new Set();(c.nfs||[]).forEach(n=>(nfIdx.get(nfNum(n))||[]).forEach(i=>ids.add(i)));(colIdx.get(nfNum(c.id_coleta))||[]).forEach(i=>ids.add(i));
+  const rows=[...ids],lanes=[...new Set(rows.map(i=>S.rows[i].faixa_id))].map(laneById).filter(Boolean);
+  const vlanes=lanes.filter(l=>l.tipo==='veiculo'),pl=normPlate(c.placa);
+  const div=!!(pl&&vlanes.length&&!vlanes.some(l=>extractPlates(l.placa).includes(pl)||normPlate(l.placa).includes(pl)));
+  const atrasada=c.status_brudam===1&&c.data_coleta&&c.data_coleta<S.day;
+  return{c,rows,lanes,vlanes,div,atrasada,falta:!rows.length&&c.status_brudam!==3}})}
+const BR_ST={1:['Em aberto','var(--blue)'],2:['Finalizada','var(--ok)'],3:['Cancelada','var(--risk)']};
+async function openBrudam(){panel='brudam';await loadBrudam();renderBrudam()}
+function renderBrudam(){
+ panel='brudam';
+ if(!BR.ok){openDrawer('Coletas Brudam<p>Conferência entre o Brudam e a Programação.</p>',`<div class="box"><h4>A integração ainda não está ativa</h4><p class="adm-help">Não encontrei a tabela de coletas do Brudam (${esc(BR.erro||'')}). Rode o script 07_brudam_coletas.sql e publique a função brudam-sync.</p></div>`,`<button class="btn" data-act="close">Fechar</button>`,true);return}
+ const all=brudamMatch(),f=BR.filtro;
+ const cnt={todas:all.length,falta:all.filter(x=>x.falta).length,ok:all.filter(x=>x.rows.length).length,div:all.filter(x=>x.div).length,atr:all.filter(x=>x.atrasada).length,canc:all.filter(x=>x.c.status_brudam===3).length};
+ const list=all.filter(x=>f==='todas'||(f==='falta'&&x.falta)||(f==='ok'&&x.rows.length)||(f==='div'&&x.div)||(f==='atr'&&x.atrasada)||(f==='canc'&&x.c.status_brudam===3))
+  .sort((a,b)=>(b.falta-a.falta)||(b.div-a.div)||String(a.c.hora_ini||'').localeCompare(String(b.c.hora_ini||'')));
+ const lg=BR.log,can=decide('criar').r!=='deny',secao=S.lanes.find(l=>l.tipo==='secao'&&/^em defini/i.test(l.titulo||''))||S.lanes.find(l=>l.tipo==='secao');
+ const laneOpts=S.lanes.map(l=>`<option value="${l.id}" ${l===secao?'selected':''}>${esc(laneName(l))}</option>`).join('');
+ const chip=(k,t)=>`<button class="tbtn ${f===k?'on':''}" data-brf="${k}">${t} <b>${cnt[k]}</b></button>`;
+ openDrawer(`Coletas Brudam · ${dayLabel(S.day)}<p>Somente conferência: nada aqui altera o Brudam. Ligação pela NF (ou pelo número da coleta escrito na linha).</p>`,
+  `<div class="box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="meta" style="flex:1">${lg?`Última sincronização: <b>${when(lg.ts)}</b> (${esc(lg.origem||'')}${lg.quem?' · '+esc(lg.quem):''}) · ${lg.ok?'<span class="lg-ok">OK</span>':'<span class="lg-no">falhou</span>'} · ${esc(lg.msg||'')}`:'Ainda não houve sincronização.'}</div>
+   <button class="btn pri" id="brSync">Atualizar agora</button></div>
+   <div class="chips">${chip('todas','Todas')}${chip('falta','Faltam na programação')}${chip('ok','Já na programação')}${chip('div','Placa diferente')}${chip('atr','Atrasadas (dias anteriores)')}${chip('canc','Canceladas')}</div>
+   ${list.length?`<div class="adm-wrap"><table class="adm br"><thead><tr><th>Coleta</th><th>Coleta em</th><th>Entrega para</th><th>NFs</th><th>Vol · peso · valor</th><th>Brudam</th><th>Programação</th></tr></thead><tbody>
+   ${list.map(x=>{const c=x.c,st=BR_ST[c.status_brudam]||['?','var(--muted)'];
+    return `<tr class="${x.falta?'br-falta':x.div?'br-div':''}"><td><b style="font-family:var(--cond);font-size:16px">${esc(c.id_coleta)}</b><div class="meta">${dayLabel(c.data_coleta||'')} ${esc(c.hora_ini||'')}${c.hora_fim?'–'+esc(c.hora_fim):''}${x.atrasada?' <span class="pend" style="background:var(--risk);color:#fff">atrasada</span>':''}</div></td>
+     <td>${esc(c.local_coleta||c.cliente||'')}<div class="meta">${esc(c.cidade_coleta||'')}</div></td>
+     <td>${esc(c.local_entrega||'')}<div class="meta">${esc(c.cidade_entrega||'')}</div></td>
+     <td style="max-width:140px;white-space:normal">${esc((c.nfs||[]).join(', ')||'—')}</td>
+     <td style="white-space:nowrap">${c.volumes??'–'} vol · ${c.peso!=null?kg(+c.peso):'–'}<div class="meta">${c.valor!=null?brl(+c.valor):''}</div></td>
+     <td><span style="color:${st[1]};font-weight:700">${st[0]}</span>${c.placa?` <span class="ptag ${FROTA_C[frotaOfPlates([normPlate(c.placa)])]}">${esc(c.placa)}</span>`:''}<div class="meta" title="${esc(c.ultima_ocorrencia_obs||'')}">${esc(c.ultima_ocorrencia||'')}${c.ultima_ocorrencia_data?' · '+when(c.ultima_ocorrencia_data):''}</div></td>
+     <td style="min-width:220px">${x.rows.length?`<span class="lg-ok">✓ ${x.rows.length} linha${x.rows.length>1?'s':''}</span><div class="meta">${x.lanes.map(l=>esc(laneName(l))).join('<br>')}</div>${x.div?`<div class="lg-no">Placa no Brudam: ${esc(c.placa)}</div>`:''}<button class="linkbtn" data-open="${x.rows[0]}" style="margin:0;padding:0">abrir</button>`
+       :c.status_brudam===3?'<span class="meta">cancelada no Brudam</span>':`<span class="lg-no">Falta</span>${can?`<div class="row2" style="margin-top:4px"><select data-brlane="${esc(c.id_coleta)}" style="max-width:200px">${laneOpts}</select><button class="btn" data-bradd="${esc(c.id_coleta)}" style="padding:3px 10px">Adicionar</button></div>`:''}`}</td></tr>`}).join('')}
+   </tbody></table></div>`:'<div class="empty">Nenhuma coleta neste filtro.</div>'}`,
+  `<button class="btn" data-act="close">Fechar</button>`,true);
+ $('brSync').onclick=async()=>{const b=$('brSync');b.disabled=true;b.textContent='Sincronizando…';
+  try{const{data:{session}}=await sb.auth.getSession();const r=await fetch(SUPA_URL+'/functions/v1/brudam-sync',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:SUPA_KEY}});
+   const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)toast('Sincronização: '+(j.erro||('HTTP '+r.status)),true);else toast(`Sincronizado: ${j.qtd} coletas`)}catch(e){fail(e,'Sincronização')}
+  await loadBrudam();if(panel==='brudam')renderBrudam()};
+}
+async function addFromBrudam(id){const c=BR.rows.find(x=>x.id_coleta===id);if(!c)return;const to=document.querySelector(`[data-brlane="${CSS.escape(id)}"]`)?.value;
+ const d=decide('criar',null);if(d.r==='deny')return deny(d.why);const l=laneById(to);if(!l)return toast('Escolha onde adicionar',true);
+ const base=Math.max(0,...laneRows(l).map(i=>+S.rows[i].ordem||0))+1;
+ const rec={faixa_id:to,ordem:base,col:`Coleta ${c.id_coleta} - ${c.local_coleta||c.cliente||''}${c.endereco_coleta?' : '+c.endereco_coleta:''}${c.cidade_coleta?' - '+c.cidade_coleta:''}`,
+  dest:c.local_entrega||null,cidade:c.cidade_entrega||null,nf:(c.nfs||[]).join('/')||null,vol:c.volumes!=null?String(c.volumes):null,peso:c.peso!=null?String(c.peso):null,valor:c.valor!=null?String(c.valor):null,
+  hprog:c.hora_ini||null,endent:c.endereco_entrega||null,resp:me().nome_programacao||me().nome,status:'Em definição',obs:`Brudam coleta ${c.id_coleta}`};
+ const{error}=await sb.from('cargas').insert(rec);if(error)return fail(error,'Adicionar');await loadDay();renderBoard();renderBrudam();toast(`Coleta ${c.id_coleta} adicionada em ${laneName(l)}`)}
+
 /* ---------- novo dia ---------- */
 function openNewDay(preset){
  if(decide('veiculo').r!=='allow')return deny('Seu perfil não abre dias');panel='newday';
@@ -1049,7 +1118,7 @@ function openNewDay(preset){
 
 /* ---------- eventos ---------- */
 document.addEventListener('click',async e=>{
- const t=e.target.closest('[data-act],[data-day],[data-open],[data-rq],[data-adm],[data-tab]');
+ const t=e.target.closest('[data-act],[data-day],[data-open],[data-rq],[data-adm],[data-tab],[data-brf],[data-bradd]');
  if(!t){const row=e.target.closest('.row');if(row&&!e.target.closest('select,input')&&S.me)openRow(row.dataset.id);return}
  if(t.dataset.tab){admTab=t.dataset.tab;renderAdmin();return}
  if(t.dataset.adm){const a=t.dataset.adm;
@@ -1068,6 +1137,8 @@ document.addEventListener('click',async e=>{
   return}
  if(t.dataset.day){await selectDay(t.dataset.day);return}
  if(t.dataset.open){openRow(t.dataset.open);return}
+ if(t.dataset.brf){BR.filtro=t.dataset.brf;renderBrudam();return}
+ if(t.dataset.bradd){t.disabled=true;await addFromBrudam(t.dataset.bradd);return}
  if(t.dataset.rq){if(t.dataset.rq==='cancel')cancelReq(t.dataset.id);else decideReq(t.dataset.id,t.dataset.rq==='ok');return}
  const a=t.dataset.act;
  if(a==='toggle'){const k=t.dataset.lane;UI.open[k]=!UI.open[k];saveUI();renderBoard();if(UI.open[k])requestAnimationFrame(()=>document.querySelector(`.lane[data-lane="${k}"]`)?.scrollIntoView({block:'nearest'}))}
@@ -1090,7 +1161,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
 $('fView').onchange=e=>{UI.view=e.target.value;saveUI();renderBoard()};
 $('btnOpenAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=true);saveUI();renderBoard()};
 $('btnCloseAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=false);saveUI();renderBoard();window.scrollTo({top:0})};
-$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=()=>openNewDay();$('btnImport').onclick=openImport;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
+$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=()=>openNewDay();$('btnImport').onclick=openImport;$('btnBrudam').onclick=openBrudam;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
 $('btnPass').onclick=openPass;
 $('btnOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('bulkClear').onclick=()=>{sel.clear();renderBoard()};
@@ -1150,6 +1221,7 @@ async function start(){
   .on('postgres_changes',{event:'*',schema:'public',table:'faixas'},()=>scheduleReload())
   .on('postgres_changes',{event:'*',schema:'public',table:'solicitacoes'},()=>scheduleReload())
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'historico'},()=>scheduleReload())
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'brudam_sync_log'},async()=>{if(panel==='brudam'){await loadBrudam();renderBrudam()}})
   .on('postgres_changes',{event:'*',schema:'public',table:'placas'},()=>scheduleReload(true))
   .on('postgres_changes',{event:'INSERT',schema:'public',table:'backups'},()=>loadLastBackup())
   .on('postgres_changes',{event:'*',schema:'public',table:'dias'},async()=>{await loadDays();scheduleReload()})
