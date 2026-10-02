@@ -333,6 +333,12 @@ body{font-family:var(--font);font-variation-settings:normal}
 .eye.on{color:var(--orange)}
 .caps{font-size:12.5px;color:var(--warn);margin:-4px 0 10px;font-weight:600}
 
+.pwbox{border:2px solid var(--orange);border-radius:8px;padding:12px 14px;margin:0 0 14px;background:var(--orange-soft)}
+.pwbox h4{margin:0 0 8px}
+.pwbox .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pwbox .pw{flex:1;min-width:200px}
+.pwbox input[type=text],.pwbox input[type=password]{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 9px;font-size:15px}
+.lg-ok{color:var(--ok);font-weight:600}.lg-no{color:var(--risk);font-weight:600}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -365,7 +371,9 @@ body{font-family:var(--font);font-variation-settings:normal}
     </div>
     <div id="lnew" class="hide">
       <label class="fld"><span>Nova senha (mínimo 8 caracteres)</span><span class="pw"><input id="lnewpass" type="password" autocomplete="new-password" minlength="8"><button type="button" class="eye" data-eye="lnewpass" aria-label="Mostrar senha" title="Mostrar senha"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="e-open" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="e-open" cx="12" cy="12" r="3"/><path class="e-shut" d="M17.9 17.9A10.4 10.4 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.1 9.1 0 0 1 12 5c7 0 11 7 11 7a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22"/></svg></button></span></label>
+      <label class="fld"><span>Confirme a nova senha</span><span class="pw"><input id="lnewpass2" type="password" autocomplete="new-password" minlength="8"><button type="button" class="eye" data-eye="lnewpass2" aria-label="Mostrar senha" title="Mostrar senha"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="e-open" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle class="e-open" cx="12" cy="12" r="3"/><path class="e-shut" d="M17.9 17.9A10.4 10.4 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 5.2A9.1 9.1 0 0 1 12 5c7 0 11 7 11 7a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2M1 1l22 22"/></svg></button></span></label>
       <button class="btn pri" type="button" id="lsetpass">Salvar nova senha</button>
+      <button class="linkbtn" type="button" id="lcancelnew">Sair</button>
     </div>
   </form>
 </div>
@@ -378,7 +386,7 @@ body{font-family:var(--font);font-variation-settings:normal}
     <button class="tbtn" id="btnReq">Solicitações<span class="cnt" id="cReq">0</span></button>
     <button class="tbtn" id="btnAdm">Cadastros</button>
     <button class="tbtn" id="btnHist">Histórico<span class="cnt" id="cHist">0</span></button>
-    <div class="who"><div class="av" id="meAv">?</div><span id="meName" style="font-weight:600"></span><button class="tbtn" id="btnOut">Sair</button></div>
+    <div class="who"><div class="av" id="meAv">?</div><span id="meName" style="font-weight:600"></span><button class="tbtn" id="btnPass">Trocar senha</button><button class="tbtn" id="btnOut">Sair</button></div>
   </div>
   <div class="filters">
     <label>Responsável <select id="fResp"><option value="">Todos</option></select></label>
@@ -711,6 +719,7 @@ function cadastroResumo(e){let a=null,b=null;try{a=e.de?JSON.parse(e.de):null;b=
  if(t==='permissoes'){const x=b||a;const p=S.profiles.find(p=>p.id===x.perfil_id)?.nome||x.perfil_id;return `${p} / ${ACTIONS_CURTO[x.acao_id]||x.acao_id}: ${MODE_N[a?.modo]||'—'} → ${MODE_N[b?.modo]||'removido'}`}
  if(t==='aprovadores'){const x=b||a;return `${op==='DELETE'?'removeu':'incluiu'} ${S.profiles.find(p=>p.id===x.perfil_id)?.nome||x.perfil_id} como aprovador de ${ACTIONS_CURTO[x.acao_id]||x.acao_id}`}
  if(t==='usuarios'){const x=b||a;if(op==='INSERT')return `cadastrou ${x.nome} (${x.email})`;const diff=Object.keys(b||{}).filter(k=>k!=='criado_em'&&JSON.stringify(a?.[k])!==JSON.stringify(b?.[k])).map(k=>`${k}: ${a?.[k]??'vazio'} → ${b?.[k]??'vazio'}`);return `${x.nome}: ${diff.join(', ')||'sem mudança'}`}
+ if(t==='senha')return e.detalhes?.texto||'alterou senha';
  if(t==='placas'){const x=b||a;return op==='INSERT'?`cadastrou a placa ${x.placa} como ${FROTA_N[x.tipo]}`:op==='DELETE'?`removeu a placa ${x.placa} (passa a ser Terceiro)`:`placa ${x.placa}: ${FROTA_N[a?.tipo]}${a?.ativo?'':' (inativa)'} → ${FROTA_N[b?.tipo]}${b?.ativo?'':' (inativa)'}`}
  if(t==='perfis'){const x=b||a;return op==='INSERT'?`criou perfil ${x.nome}`:`perfil ${a?.nome} → ${b?.nome}`}
  return t}
@@ -795,9 +804,10 @@ function renderReqs(){
 }
 
 /* ---------- cadastros ---------- */
-let admTab='users',draft=null;
+function genPass(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ',l='abcdefghijkmnpqrstuvwxyz',d='23456789',r=n=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n},p=s=>s[r(s.length)];return 'Px'+p(L)+p(l)+p(l)+p(l)+p(d)+p(d)+p(d)+'!'}
+let admTab='users',draft=null,LOGINS=null,pwFor=null;
 function openAdmin(){if(decide('admin').r!=='allow')return deny('Seu perfil não administra cadastros');
- panel='adm';draft=JSON.parse(JSON.stringify({users:S.users,profiles:S.profiles,perms:S.perms,approvers:S.approvers,placas:S.placas}));renderAdmin()}
+ panel='adm';pwFor=null;LOGINS=null;sb.rpc('logins_status').then(({data,error})=>{LOGINS=error?{}:Object.fromEntries((data||[]).map(x=>[x.email,x]));if(panel==='adm'&&admTab==='users')renderAdmin()});draft=JSON.parse(JSON.stringify({users:S.users,profiles:S.profiles,perms:S.perms,approvers:S.approvers,placas:S.placas}));renderAdmin()}
 function renderAdmin(){
  const P=draft.profiles;let body='';
  const tabs=`<div class="tabs" role="tablist"><button role="tab" data-tab="users" aria-selected="${admTab==='users'}">Usuários e logins</button><button role="tab" data-tab="perms" aria-selected="${admTab==='perms'}">Perfis e permissões</button><button role="tab" data-tab="placas" aria-selected="${admTab==='placas'}">Placas (frota e agregados)</button></div>`;
@@ -814,11 +824,19 @@ function renderAdmin(){
    <td><button class="btn no" data-adm="delPlaca" data-i="${i}" style="padding:3px 10px">Remover</button></td></tr>`).join('')}
   </tbody></table></div><button class="btn adm-add" data-adm="addPlaca">+ Nova placa</button>`;
  }else if(admTab==='users'){
-  body=`<p class="adm-help">Cadastre aqui a pessoa e o perfil. O login (e-mail e senha) é criado no painel do Supabase, em Authentication › Users › Add user, com o mesmo e-mail. "Nome na programação" é como a pessoa aparece na coluna Responsável e define quais são as "próprias cargas".</p>
-  <div class="adm-wrap"><table class="adm"><thead><tr><th>Nome</th><th>E-mail de login</th><th>Setor</th><th>Perfil</th><th>Nome na programação</th><th>Ativo</th></tr></thead><tbody>
+  const pu=pwFor!=null?draft.users[pwFor]:null;
+  const pwbox=pu?`<div class="pwbox"><h4>${LOGINS&&LOGINS[pu.email]?.tem_login?'Redefinir a senha':'Criar o login'} de ${esc(pu.nome)} (${esc(pu.email)})</h4>
+   <div class="row2"><span class="pw"><input type="text" id="pwVal" autocomplete="off" value="${genPass()}"></span><button class="btn" data-adm="pwGen">Gerar outra</button>
+   <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="pwForce" checked> obrigar a pessoa a trocar no primeiro acesso</label></div>
+   <p class="adm-help" style="margin:8px 0">Anote ou copie a senha antes de confirmar e entregue à pessoa individualmente. Por segurança, ela não fica salva em lugar nenhum nem aparece no histórico.</p>
+   <div class="row2"><button class="btn pri" data-adm="pwGo">Confirmar</button><button class="btn" data-adm="pwCancel">Cancelar</button></div></div>`:'';
+  body=pwbox+`<p class="adm-help">Cadastre a pessoa, clique em <b>Salvar cadastros</b> e depois em <b>Criar login</b> para gerar a senha provisória. "Nome na programação" é como a pessoa aparece na coluna Responsável e define quais são as "próprias cargas".</p>
+  <div class="adm-wrap"><table class="adm"><thead><tr><th>Nome</th><th>E-mail de login</th><th>Setor</th><th>Perfil</th><th>Nome na programação</th><th>Ativo</th><th>Login e senha</th></tr></thead><tbody>
   ${draft.users.map((u,i)=>`<tr class="${u.ativo?'':'off'}"><td><input type="text" data-u="${i}" data-k="nome" value="${esc(u.nome)}"></td><td><input type="email" data-u="${i}" data-k="email" value="${esc(u.email)}"></td>
    <td><input type="text" data-u="${i}" data-k="setor" value="${esc(u.setor||'')}"></td><td><select data-u="${i}" data-k="perfil_id">${P.map(p=>`<option value="${p.id}" ${p.id===u.perfil_id?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></td>
-   <td><input type="text" data-u="${i}" data-k="nome_programacao" value="${esc(u.nome_programacao||'')}" placeholder="ex.: Júlia"></td><td><input type="checkbox" data-u="${i}" data-k="ativo" ${u.ativo?'checked':''} aria-label="Ativo"></td></tr>`).join('')}
+   <td><input type="text" data-u="${i}" data-k="nome_programacao" value="${esc(u.nome_programacao||'')}" placeholder="ex.: Júlia"></td><td><input type="checkbox" data-u="${i}" data-k="ativo" ${u.ativo?'checked':''} aria-label="Ativo"></td>
+   <td style="white-space:nowrap">${!u.id?'<span class="muted">salve primeiro</span>':`${LOGINS===null?'<span class="muted">…</span>':LOGINS[u.email]?.tem_login?`<span class="lg-ok" title="${LOGINS[u.email].ultimo_acesso?'Último acesso: '+when(LOGINS[u.email].ultimo_acesso):'Ainda não entrou'}">✓ tem login</span>${u.trocar_senha?' <span class="pend">senha provisória</span>':''}`:'<span class="lg-no">sem login</span>'}
+    <button class="btn" data-adm="pw" data-i="${i}" style="padding:3px 10px;margin-left:6px">${LOGINS&&LOGINS[u.email]?.tem_login?'Redefinir senha':'Criar login'}</button>`}</td></tr>`).join('')}
   </tbody></table></div><button class="btn adm-add" data-adm="addUser">+ Novo usuário</button>`;
  }else{
   body=`<p class="adm-help">Para cada ação, escolha a regra de cada perfil. Quando a regra envolve aprovação, a alteração fica pendente até alguém de um perfil marcado em "Quem aprova" aceitar. Ninguém aprova o próprio pedido. O banco confere essas regras a cada gravação.</p>
@@ -1037,6 +1055,13 @@ document.addEventListener('click',async e=>{
  if(t.dataset.adm){const a=t.dataset.adm;
   if(a==='save'){t.disabled=true;await saveAdmin();return}
   if(a==='addUser'){draft.users.push({id:null,nome:'',email:'',setor:'',perfil_id:draft.profiles[draft.profiles.length-1].id,nome_programacao:'',ativo:true});renderAdmin()}
+  if(a==='pw'){pwFor=+t.dataset.i;renderAdmin();$('dBody').scrollTop=0;return}
+  if(a==='pwCancel'){pwFor=null;renderAdmin();return}
+  if(a==='pwGen'){$('pwVal').value=genPass();return}
+  if(a==='pwGo'){const u=draft.users[pwFor],pw=$('pwVal').value.trim();if(pw.length<8)return toast('A senha precisa ter pelo menos 8 caracteres',true);
+   t.disabled=true;const{data,error}=await sb.rpc('admin_definir_senha',{p_email:u.email,p_senha:pw,p_trocar:$('pwForce').checked});t.disabled=false;
+   if(error)return fail(error,'Senha');try{await navigator.clipboard.writeText(pw)}catch(e){}
+   toast(`${u.nome}: ${data}. Senha copiada para a área de transferência.`);pwFor=null;await loadMeta();draft.users=JSON.parse(JSON.stringify(S.users));const r=await sb.rpc('logins_status');LOGINS=Object.fromEntries((r.data||[]).map(x=>[x.email,x]));renderAdmin();return}
   if(a==='addPlaca'){draft.placas.unshift({placa:t.dataset.placa||'',tipo:t.dataset.tipo||'frota',descricao:'',ativo:true,_new:true});renderAdmin();return}
   if(a==='delPlaca'){const p=draft.placas[+t.dataset.i];if(p&&confirm('Remover a placa '+(p.placa||'')+'? Ela passa a contar como Terceiro.')){draft.placas.splice(+t.dataset.i,1);renderAdmin()}return}
   if(a==='addProfile'){const id='p'+Date.now().toString(36);draft.profiles.push({id,nome:'Novo perfil'});draft.perms[id]=Object.fromEntries(S.acoes.map(x=>[x.id,'bloq']));renderAdmin()}
@@ -1066,6 +1091,7 @@ $('fView').onchange=e=>{UI.view=e.target.value;saveUI();renderBoard()};
 $('btnOpenAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=true);saveUI();renderBoard()};
 $('btnCloseAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=false);saveUI();renderBoard();window.scrollTo({top:0})};
 $('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=()=>openNewDay();$('btnImport').onclick=openImport;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
+$('btnPass').onclick=openPass;
 $('btnOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('bulkClear').onclick=()=>{sel.clear();renderBoard()};
 $('bulkGo').onclick=async()=>{const to=$('bulkTo').value;if(!to)return toast('Escolha o destino',true);const ids=[...sel];sel.clear();await moveRows(ids,to,$('bulkWhy').value.trim());$('bulkWhy').value=''};
@@ -1091,8 +1117,22 @@ $('lform').onsubmit=async e=>{e.preventDefault();$('lgo').disabled=true;$('lmsg'
 $('lforgot').onclick=async()=>{const em=$('lemail').value.trim().toLowerCase();if(!em)return showLogin('Digite seu e-mail acima e clique de novo em "Esqueci minha senha".');
  const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
  showLogin(error?error.message:'Se o e-mail estiver cadastrado, você vai receber um link para criar uma nova senha.',!error)};
-$('lsetpass').onclick=async()=>{const p=$('lnewpass').value;if(p.length<8)return showLogin('A senha precisa ter pelo menos 8 caracteres.');
- const{error}=await sb.auth.updateUser({password:p});if(error)return showLogin(error.message);recovering=false;$('lnew').classList.add('hide');$('lfields').classList.remove('hide');start()};
+function pwMsg(m){if(/different from the old/i.test(m))return 'A nova senha precisa ser diferente da atual.';if(/weak|at least/i.test(m))return 'Senha fraca: use pelo menos 8 caracteres, misturando letras e números.';return m}
+let forcing=false;
+$('lsetpass').onclick=async()=>{const p=$('lnewpass').value,p2=$('lnewpass2').value;if(p.length<8)return showLogin('A senha precisa ter pelo menos 8 caracteres.');if(p!==p2)return showLogin('As duas senhas não conferem.');
+ $('lsetpass').disabled=true;const{error}=await sb.auth.updateUser({password:p});$('lsetpass').disabled=false;if(error)return showLogin(pwMsg(error.message));
+ await sb.rpc('senha_trocada');recovering=false;forcing=false;$('lnewpass').value=$('lnewpass2').value='';$('lnew').classList.add('hide');$('lfields').classList.remove('hide');start()};
+$('lcancelnew').onclick=async()=>{await sb.auth.signOut();location.reload()};
+function showForce(){forcing=true;$('loading').classList.add('hide');['app-top','sum'].forEach(id=>$(id).classList.add('hide'));$('board').innerHTML='';$('login').classList.remove('hide');$('lfields').classList.add('hide');$('lnew').classList.remove('hide');
+ $('lmsg').textContent=`Olá, ${S.me.nome.split(' ')[0]}! Este é seu primeiro acesso (ou sua senha foi redefinida). Crie agora a sua senha pessoal.`;$('lmsg').className='lmsg ok';setTimeout(()=>$('lnewpass').focus(),50)}
+function openPass(){panel='pass';
+ openDrawer('Trocar minha senha<p>Mínimo de 8 caracteres. Use uma senha que só você saiba.</p>',
+  `<div class="form"><div class="fld full"><label>Nova senha</label><input type="password" id="np1" autocomplete="new-password"></div><div class="fld full"><label>Confirme a nova senha</label><input type="password" id="np2" autocomplete="new-password"></div>
+   <div class="fld full"><label style="justify-content:flex-start;gap:6px"><input type="checkbox" id="npShow" style="width:auto"> mostrar senhas</label></div></div>`,
+  `<button class="btn" data-act="close">Cancelar</button><button class="btn pri" id="npGo">Salvar nova senha</button>`);
+ $('npShow').onchange=e=>{$('np1').type=$('np2').type=e.target.checked?'text':'password'};
+ $('npGo').onclick=async()=>{const p=$('np1').value,p2=$('np2').value;if(p.length<8)return toast('A senha precisa ter pelo menos 8 caracteres',true);if(p!==p2)return toast('As duas senhas não conferem',true);
+  $('npGo').disabled=true;const{error}=await sb.auth.updateUser({password:p});$('npGo').disabled=false;if(error)return toast(pwMsg(error.message),true);await sb.rpc('senha_trocada');closeDrawer();toast('Senha alterada')}}
 sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY'){recovering=true;$('lfields').classList.add('hide');$('lnew').classList.remove('hide');showLogin('Crie sua nova senha.',true)}});
 
 async function start(){
@@ -1101,6 +1141,7 @@ async function start(){
  try{await loadMeta()}catch(e){return showLogin('Erro ao carregar cadastros: '+e.message)}
  const email=String(session.user.email||'').toLowerCase();S.me=S.users.find(u=>u.email===email&&u.ativo);
  if(!S.me){await sb.auth.signOut();return showLogin(`O login ${email} existe, mas não está cadastrado ou está inativo na Programação. Fale com a Coordenação.`)}
+ if(S.me.trocar_senha)return showForce();
  $('login').classList.add('hide');['app-top','sum'].forEach(id=>$(id).classList.remove('hide'));
  try{await loadDays();const saved=localStorage.getItem(LKEY+'-day');S.day=S.days.some(d=>d.data===saved)?saved:(S.days[0]?.data||null);await loadDay()}catch(e){fail(e,'Carregar')}
  $('loading').classList.add('hide');renderBoard();loadLastBackup();
