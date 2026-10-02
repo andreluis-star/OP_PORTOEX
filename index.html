@@ -72,7 +72,7 @@ main{padding:12px 18px 120px}
 .spine{background:var(--dock);color:#fff;padding:10px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px}
 :root[data-theme="dark"] .spine{color:#0F161D}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .spine{color:#0F161D}}
-.spine .t{font-size:26px;font-weight:800;font-variation-settings:"wdth" 70;line-height:1;font-variant-numeric:tabular-nums}
+.spine .t{font-size:20px;font-weight:800;font-variation-settings:"wdth" 70;line-height:1;font-variant-numeric:tabular-nums}
 .spine .s{font-size:11px;opacity:.85;line-height:1.2}
 .lane.pool .spine{background:var(--grey-soft);color:var(--muted)}
 .lane.pool .spine .t{font-size:15px;font-variation-settings:"wdth" 80}
@@ -228,10 +228,10 @@ tr.off td{opacity:.55}
 /* placa ao lado da hora */
 .lane{grid-template-columns:74px 112px 1fr}
 .lane.sumline{grid-template-columns:74px 112px 1fr}
-.plate{background:var(--dock);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;border-left:1px solid rgba(255,255,255,.22);text-align:center}
-.plate .p{font-size:26px;font-weight:800;font-variation-settings:"wdth" 70;line-height:1;letter-spacing:.01em;white-space:nowrap}
+.plate{background:var(--dock);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10px!important;gap:2px;padding:6px 4px;border-left:1px solid rgba(255,255,255,.22);text-align:center}
+.plate .p{font-size:20px;font-weight:800;font-variation-settings:"wdth" 70;line-height:1;letter-spacing:.01em;white-space:nowrap}
 .plate .s{font-size:11px;opacity:.85}
-.lane.sumline .plate{padding:6px 4px;gap:1px}
+.lane.sumline .plate{padding:6px 4px!important;gap:1px;justify-content:center}
 .lane.sumline .plate .p{font-size:20px}
 .lane.sumline .plate .s{display:none}
 .lane.pool .plate{background:var(--grey-soft);color:var(--muted);border-left-color:var(--line)}
@@ -261,6 +261,22 @@ tr.off td{opacity:.55}
 
 .bk-note{padding:7px 18px;font-size:13px;background:var(--hivis);color:var(--hivis-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-weight:600}
 .bk-note .tbtn{background:#fff;color:#2F2500;border-color:rgba(0,0,0,.2)}
+
+.days button.d-past{color:var(--risk)}
+.days button.d-today{color:var(--ok);border-color:var(--ok);border-width:2px;font-weight:800}
+.days button.d-today small{font-size:10px;font-weight:700;text-transform:uppercase;margin-left:2px}
+.days button.d-today[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.days button.d-past[aria-pressed="true"]{background:var(--risk);border-color:var(--risk);color:#fff}
+.days button.d-missing{border-style:dashed;opacity:.85}
+.days select{border:1px solid var(--line);border-radius:6px;padding:4px;background:var(--surface2);color:var(--ink);max-width:110px}
+.days{align-items:center}
+.rec{display:inline-block;font-size:10.5px;font-weight:700;border-radius:3px;padding:0 5px;margin-right:6px;vertical-align:1px;background:var(--plum-soft);color:var(--plum);border:1px solid var(--plum)}
+.rec.alert{background:var(--risk);color:#fff;border-color:var(--risk)}
+.row.rec-row{box-shadow:inset 4px 0 0 var(--plum)}
+.row.rec-alert{box-shadow:inset 4px 0 0 var(--risk);background:var(--risk-soft)}
+.row.rec-alert:hover{background:var(--risk-soft);filter:brightness(.98)}
+.ss .k-rec{background:var(--plum-soft);color:var(--plum)}.ss .k-al{background:var(--risk);color:#fff}
+
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -312,6 +328,7 @@ tr.off td{opacity:.55}
     <label>Status <select id="fSt"><option value="">Todos</option></select></label>
     <label><input type="checkbox" id="fMine"> Só minhas cargas</label>
     <label><input type="checkbox" id="fChanged"> Só alteradas</label>
+    <label>Dias anteriores <select id="fRec"><option value="">Todas</option><option value="rec">Vindas de dias anteriores</option><option value="alert">Voltaram após veículo</option><option value="new">Só do dia</option></select></label>
     <button class="tbtn" id="btnOpenAll">Expandir todos</button>
     <label>Colunas <select id="fView"><option value="c">Compacta</option><option value="f">Completa (como a planilha)</option></select></label>
     <button class="tbtn" id="btnCloseAll" style="margin-left:auto">Resumir todos</button>
@@ -464,13 +481,47 @@ async function decideReq(id,ok){const{error}=await sb.rpc('decidir_solicitacao',
 async function cancelReq(id){const{error}=await sb.rpc('cancelar_solicitacao',{p_id:id});if(error)return fail(error,'Cancelar');await loadDay();renderBoard();renderReqs();toast('Solicitação cancelada')}
 function flash(ids){requestAnimationFrame(()=>ids.forEach(id=>{const el=document.querySelector(`.row[data-id="${id}"]`);if(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}}))}
 
+
+/* ---------- cargas em mais de um dia ---------- */
+let REC={},RECDAY=null,RECBUSY=false,RM={};
+function ckey(r){if(!r||r.nota)return null;const nf=norm(r.nf).replace(/\s+/g,''),dest=norm(shortDest(r.dest||''));
+ if(nf.length>=3)return 'nf:'+nf+'|'+dest;if(dest)return 'cd:'+norm(r.col).replace(/\s+/g,' ').slice(0,40)+'|'+dest;return null}
+async function loadRec(force){
+ if(!S.day||RECBUSY||(!force&&RECDAY===S.day))return;RECBUSY=true;const day=S.day;
+ try{const prev=S.days.map(d=>d.data).filter(d=>d<day).sort().slice(-10);const map={};
+  if(prev.length){const fx=await fetchAll('faixas',q=>q.in('data',prev));const fi=Object.fromEntries(fx.map(f=>[f.id,f]));const ids=fx.map(f=>f.id);
+   for(let i=0;i<ids.length;i+=150){const cs=await fetchAll('cargas',q=>q.in('faixa_id',ids.slice(i,i+150)).eq('excluida',false).eq('nota',false));
+    for(const c of cs){const k=ckey(c);if(!k)continue;const f=fi[c.faixa_id];(map[k]=map[k]||[]).push({data:f.data,tipo:f.tipo,lane:f.tipo==='veiculo'?`${f.motorista||'sem motorista'} · ${f.placa||'sem placa'}`:(f.titulo||'seção'),status:c.status,col:c.col||''})}}}
+  for(const k in map){const seen=new Set();map[k]=map[k].sort((a,b)=>a.data.localeCompare(b.data)).filter(o=>!seen.has(o.data)&&seen.add(o.data))}
+  if(S.day===day){REC=map;RECDAY=day;renderBoard()}
+ }catch(e){console.warn('recorrência',e)}RECBUSY=false}
+function computeRec(){RM={};if(RECDAY!==S.day)return;
+ for(const [id,r] of Object.entries(S.rows)){const k=ckey(r);if(!k||!REC[k])continue;const prev=REC[k],first=prev[0],isColeta=/^coleta/.test(norm(first.col));
+  const assigned=prev.filter((p,i)=>p.tipo==='veiculo'&&!(i===0&&isColeta));
+  RM[id]={prev,n:prev.length+1,isColeta,assigned,alert:assigned.length>0}}}
+function recBadge(id){const m=RM[id];if(!m)return'';const tl=m.prev.map(p=>`${dayLabel(p.data)}: ${p.tipo==='veiculo'?'veículo '+p.lane:p.lane} (${p.status})`).join(' | ');
+ return m.alert?`<span class="rec alert" title="Reapareceu depois de estar em veículo. ${esc(tl)}">${m.n}º dia · não carregada?</span>`:`<span class="rec" title="${m.isColeta?'Coletada':'Desde'} ${dayLabel(m.prev[0].data)}. ${esc(tl)}">${m.n}º dia</span>`}
+function recBox(id){const m=RM[id];if(!m)return'';
+ return `<div class="box"><h4>${m.alert?'Atenção: esta carga voltou depois de estar em veículo':'Esta carga está na programação há '+m.n+' dias'}</h4>
+  <p class="adm-help">${m.isColeta?'Começou como coleta em '+dayLabel(m.prev[0].data)+'.':'Primeira vez em '+dayLabel(m.prev[0].data)+', sem ser coleta.'} ${m.alert?'Se já estava atribuída a um veículo e aparece de novo, provavelmente não foi carregada ou entregue.':'Nos dias seguintes ela deve estar pendente ou em um veículo. Depois de atribuída, não deveria aparecer de novo.'}</p>
+  <ul class="hist">${m.prev.map((p,i)=>`<li><span class="av" style="background:${p.tipo==='veiculo'&&!(i===0&&m.isColeta)?'var(--risk)':'var(--plum)'}">${dayLabel(p.data).slice(0,2)}</span><div><div class="what"><b>${dayLabel(p.data)}</b> · ${p.tipo==='veiculo'?'no veículo <b>'+esc(p.lane)+'</b>':'em <b>'+esc(p.lane)+'</b>'}${i===0&&m.isColeta?' (coleta)':''}</div><div class="when">Status: ${esc(p.status)} · ${esc(p.col).slice(0,80)}</div></div></li>`).join('')}
+  <li><span class="av">${dayLabel(S.day).slice(0,2)}</span><div><div class="what"><b>${dayLabel(S.day)}</b> · dia aberto</div></div></li></ul></div>`}
+
 /* ---------- render ---------- */
 function permSummary(){const p=S.perms[me().perfil_id]||{};const g={livre:[],proprias:[],aprov:[]};
  S.acoes.forEach(a=>{const m=p[a.id]||'bloq',c=ACTIONS_CURTO[a.id]||a.nome;if(m==='proprias_aprov'){g.proprias.push(c);g.aprov.push(c+' (de outros)')}else if(g[m])g[m].push(c)});
  return [g.livre.length?`<b>livre:</b> ${g.livre.join(', ')}`:'',g.proprias.length?`<b>só nas próprias:</b> ${g.proprias.join(', ')}`:'',g.aprov.length?`<b>com aprovação:</b> ${g.aprov.join(', ')}`:'',!g.livre.length&&!g.proprias.length&&!g.aprov.length?'somente consulta':''].filter(Boolean).join(' · ')}
+function todayISO(){const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
+function renderDays(){
+ const hoje=todayISO(),all=S.days.map(d=>d.data);
+ const past=all.filter(d=>d<hoje).sort().slice(-3),fut=all.filter(d=>d>hoje).sort().slice(0,3);
+ const shown=[...past,hoje,...fut],rest=all.filter(d=>!shown.includes(d)).sort().reverse();
+ const btn=d=>{const cls=d===hoje?'d-today':d<hoje?'d-past':'d-fut',ex=all.includes(d);
+  return `<button data-day="${d}" class="${cls}${ex?'':' d-missing'}" aria-pressed="${d===S.day}" title="${d===hoje?'Hoje':d<hoje?'Dia anterior':'Próximo dia'}${ex?'':' (ainda não aberto)'}">${dayLabel(d)}${d===hoje?' <small>hoje</small>':''}</button>`};
+ $('days').innerHTML=shown.map(btn).join('')+(rest.length?`<select id="dayPick" aria-label="Outros dias"><option value="">mais…</option>${rest.map(d=>`<option value="${d}" class="${d<hoje?'o-past':''}" ${d===S.day?'selected':''}>${dayLabel(d)}/${d.slice(0,4)}${d<hoje?' (anterior)':''}</option>`).join('')}</select>`:'');
+}
 function renderTop(){
- $('days').innerHTML=S.days.slice(0,7).slice().reverse().map(d=>`<button data-day="${d.data}" aria-pressed="${d.data===S.day}">${dayLabel(d.data)}</button>`).join('')+
-  (S.days.length>7?`<select id="dayPick" aria-label="Outros dias" style="border:1px solid var(--line);border-radius:6px;padding:4px"><option value="">mais…</option>${S.days.slice(7).map(d=>`<option value="${d.data}">${dayLabel(d.data)}/${d.data.slice(0,4)}</option>`).join('')}</select>`:'');
+ renderDays();
  $('meAv').textContent=initials(me().nome);$('meName').textContent=me().nome;
  $('roleNote').innerHTML=`<span class="live ${liveOn?'on':''}" title="${liveOn?'Atualização em tempo real ativa':'Conectando…'}"></span><b>${esc(me().nome)}</b> (${esc(perfil().nome)}) · ${permSummary()}`;
  $('btnAdm').classList.toggle('hide',decide('admin').r!=='allow');
@@ -486,13 +537,14 @@ function renderCounts(){
  const br=$('btnReq');br.classList.toggle('pend',!!pend);br.classList.toggle('ok',!pend);br.title=pend?pend+' solicitação(ões) pendente(s)':'Nenhuma solicitação pendente';
  const h=S.hist.length;$('cHist').textContent=h>=600?'600+':h;$('cHist').style.display=h?'':'none';
 }
-const filtering=()=>!!($('q').value||$('fResp').value||$('fSt').value||$('fMine').checked||$('fChanged').checked);
+const filtering=()=>!!($('q').value||$('fResp').value||$('fSt').value||$('fMine').checked||$('fChanged').checked||$('fRec').value);
 function match(id,r){
  const qq=norm($('q').value),fr=$('fResp').value,fs=$('fSt').value;
  if(r.nota)return !filtering();
  if(fr&&norm(r.resp)!==norm(fr))return false;if(fs&&r.status!==fs)return false;
  if($('fMine').checked){const m=norm(me().nome_programacao);if(!m||norm(r.resp)!==m)return false}
  if($('fChanged').checked&&!LC[id]&&!PM[id])return false;
+ const fr2=$('fRec').value;if(fr2==='rec'&&!RM[id])return false;if(fr2==='alert'&&!(RM[id]&&RM[id].alert))return false;if(fr2==='new'&&RM[id])return false;
  if(qq){const l=laneOf(id);const hay=norm(F.map(f=>r[f[0]]).join(' ')+' '+(l?(l.motorista+' '+l.placa+' '+(l.titulo||'')):''));if(!qq.split(/\s+/).every(t=>hay.includes(t)))return false}
  return true}
 function computeMarks(){LC={};PM={};
@@ -505,14 +557,14 @@ function rowHTML(id,r){
  const stamp=lc?`<span class="stamp" title="${esc(lc.usuario_nome)} ${esc(lc.tipo)} ${lc.campo?esc(LABEL[lc.campo]||lc.campo):''} — ${when(lc.ts)}">${initials(lc.usuario_nome)} · ${ago(lc.ts)}</span>`:'<span></span>';
  const pend=PM[id]||r.pendente?`<span class="pend" title="Solicitação pendente de aprovação">aguarda aprovação</span>`:'';
  const cb=`<input type="checkbox" data-act="sel" data-id="${id}" ${sel.has(id)?'checked':''} aria-label="Selecionar">`,h=`<span class="handle" aria-hidden="true">⋮⋮</span>`;
- const times=[r.hprog,r.cheg,r.hfim].map(x=>x||'–').join(' / '),cls=`row ${sel.has(id)?'sel':''} ${pend?'pending':''}`;
+ const times=[r.hprog,r.cheg,r.hfim].map(x=>x||'–').join(' / '),rb=recBadge(id),cls=`row ${sel.has(id)?'sel':''} ${pend?'pending':''} ${RM[id]?(RM[id].alert?'rec-alert':'rec-row'):''}`;
  if(!full)return `<div class="${cls}" draggable="true" data-drag="row" data-id="${id}">${cb}${h}
-  <span title="${esc(r.dest)}">${esc(r.dest||'—')}${pend}</span><span class="muted" title="${esc(r.cidade)}">${esc(r.cidade||'')}</span>
+  <span title="${esc(r.dest)}">${rb}${esc(r.dest||'—')}${pend}</span><span class="muted" title="${esc(r.cidade)}">${esc(r.cidade||'')}</span>
   <span title="${esc(r.nf)}">${esc(r.nf||'')}</span><span class="num">${esc(r.vol||'')}</span><span class="num">${r.peso?num(r.peso).toLocaleString('pt-BR',{maximumFractionDigits:1}):''}</span>
   <span class="num">${r.valor?brl(num(r.valor)):''}</span><span class="muted">${esc(times)}</span><span class="muted">${esc(r.serv||'')}</span>
   <span>${esc(r.resp||'')}</span>${st}${stamp}</div>`;
  return `<div class="${cls}" draggable="true" data-drag="row" data-id="${id}">${cb}${h}
-  <span title="${esc(r.dest)}">${esc(r.dest||'—')}${pend}</span><span class="muted">${esc(r.cidade||'')}</span><span>${esc(r.nf||'')}</span>
+  <span title="${esc(r.dest)}">${rb}${esc(r.dest||'—')}${pend}</span><span class="muted">${esc(r.cidade||'')}</span><span>${esc(r.nf||'')}</span>
   <span class="num">${esc(r.vol||'')}</span><span class="num">${esc(r.peso||'')}</span><span>${esc(r.cbm||'')}</span><span class="num">${r.valor?brl(num(r.valor)):''}</span>
   <span>${esc(r.hprog||'')}</span><span>${esc(r.cheg||'')}</span><span>${esc(r.hfim||'')}</span><span class="muted">${esc(r.serv||'')}</span>
   <span title="${esc(r.cot)}">${esc(r.cot||'')}</span><span>${esc(r.pag||'')}</span><span>${esc(r.oc||'')}</span><span>${esc(r.md||'')}</span><span>${esc(r.end_ref||'')}</span><span title="${esc(r.gr)}">${esc(r.gr||'')}</span>
@@ -535,14 +587,14 @@ function laneHTML(l){
   const {dests,cities}=summary(fil?visReal:ids),cnt=s=>real.filter(r=>s.includes(r.status)).length,pend=ids.filter(id=>PM[id]||S.rows[id].pendente).length;
   const dTxt=dests.length?dests.slice(0,12).join(', ')+(dests.length>12?` +${dests.length-12}`:''):'Sem destinatários';
   const cTxt=cities.length?cities.slice(0,5).map(x=>`${x.n} (${x.c})`).join(', ')+(cities.length>5?` +${cities.length-5}`:''):'';
-  const oc=cnt(['Ocorrência','Não realizado','Reprogramado','Cancelado']);
+  const oc=cnt(['Ocorrência','Não realizado','Reprogramado','Cancelado']),nrec=ids.filter(id=>RM[id]&&!RM[id].alert).length,nal=ids.filter(id=>RM[id]&&RM[id].alert).length;
   return `<section class="lane sumline ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}"><div class="spine">${spine}</div>${plateHTML(l)}<div class="lbody">
    <button class="sline" data-act="toggle" data-lane="${l.id}" aria-expanded="false" title="Abrir ${esc(laneName(l))}">
     <span class="sv">${l.tipo==='veiculo'?`<b>${esc(l.motorista||'Sem motorista')}</b> · ${esc((l.veiculo||'').split(' - ')[0])}`:`<b>${esc(l.titulo)}</b>`}</span>
     <span class="sl">${fil?visReal.length+' de ':''}${real.length} NF · ${vol} vol${l.tipo==='veiculo'&&c.kg?` <span class="bar ${pct>100?'over':''}"><i style="width:${Math.min(pct,100)}%"></i></span>${Math.round(pct)}%`:` · ${brl(val)}`}</span>
     <span class="sd" title="${esc(dests.join(', '))}">${esc(dTxt)}</span>
     <span class="sc" title="${esc(cities.map(x=>x.n+' ('+x.c+')').join(', '))}">${esc(cTxt)}</span>
-    <span class="ss">${cnt(['OK'])?`<i class="k-ok" title="OK">${cnt(['OK'])}</i>`:''}${cnt(['Em definição'])?`<i class="k-def" title="Em definição">${cnt(['Em definição'])}</i>`:''}${oc?`<i class="k-oc" title="Com ocorrência">${oc}</i>`:''}${pend?`<i class="k-pd" title="Aguardando aprovação">${pend}</i>`:''}</span>
+    <span class="ss">${cnt(['OK'])?`<i class="k-ok" title="OK">${cnt(['OK'])}</i>`:''}${cnt(['Em definição'])?`<i class="k-def" title="Em definição">${cnt(['Em definição'])}</i>`:''}${oc?`<i class="k-oc" title="Com ocorrência">${oc}</i>`:''}${nrec?`<i class="k-rec" title="Vindas de dias anteriores">${nrec}</i>`:''}${nal?`<i class="k-al" title="Reapareceram depois de estar em veículo">${nal}</i>`:''}${pend?`<i class="k-pd" title="Aguardando aprovação">${pend}</i>`:''}</span>
     <span class="chev" aria-hidden="true">▸</span></button></div></section>`}
  let body='',prev=null;
  for(const id of vis){const r=S.rows[id];
@@ -562,7 +614,7 @@ function laneHTML(l){
   <div class="rows"><div class="tbl">${real.length?(UI.view==='f'?HDR_F:HDR_C):''}${body||'<div class="empty">Sem cargas. Arraste cargas para cá.</div>'}</div></div>
   ${decide('criar').r!=='deny'?`<div class="lfoot"><button data-act="new" data-lane="${l.id}">+ Nova carga</button></div>`:''}</div></section>`}
 function renderBoard(){
- computeMarks();renderTop();
+ computeMarks();computeRec();renderTop();
  document.body.classList.toggle('view-full',UI.view==='f');
  const all=Object.values(S.rows).filter(r=>!r.nota),cnt=s=>all.filter(r=>r.status===s).length,veh=S.lanes.filter(l=>l.tipo==='veiculo');
  const dia=S.days.find(d=>d.data===S.day);
@@ -570,12 +622,13 @@ function renderBoard(){
   <span class="k"><b>${veh.length}</b> veículos</span><span class="k"><b>${all.length}</b> NFs</span>
   <span class="k"><b>${brl(all.reduce((a,r)=>a+num(r.valor),0))}</b> em mercadoria</span>
   <span class="k"><b>${cnt('OK')}</b> OK</span><span class="k"><b>${cnt('Em definição')}</b> em definição</span>
-  <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>`:`<h1>Nenhum dia aberto</h1>`;
+  <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>${RECDAY===S.day?`<span class="k"><b style="color:var(--plum)">${Object.values(RM).filter(m=>!m.alert).length}</b> de dias anteriores</span><span class="k"><b style="color:var(--risk)">${Object.values(RM).filter(m=>m.alert).length}</b> voltaram após veículo</span>`:'<span class="k">verificando dias anteriores…</span>'}`:`<h1>Nenhum dia aberto</h1>`;
  $('notes').innerHTML=dia&&dia.lembretes&&dia.lembretes.length?`<span class="lbl">Lembretes motoristas:</span>`+dia.lembretes.map(n=>`<span class="n">${esc(n)}</span>`).join(''):'';
  const pools=S.lanes.filter(l=>l.tipo==='secao');
  $('board').innerHTML=!S.day?`<div class="empty">Ainda não há dias cadastrados. ${decide('veiculo').r==='allow'?'Use "Abrir novo dia" para começar.':'Aguarde a Programação abrir o dia.'}</div>`:
   veh.map(laneHTML).join('')+(pools.length?`<h2 class="section-title">Em definição, terceiros e filial</h2><p class="section-sub">Cargas ainda sem veículo próprio. Arraste daqui para um veículo quando a programação fechar.</p>`+pools.map(laneHTML).join(''):'');
  renderBulk();renderCounts();
+ if(S.day&&RECDAY!==S.day)loadRec();
 }
 function renderBulk(){
  const b=$('bulk');sel=new Set([...sel].filter(id=>S.rows[id]));
@@ -629,7 +682,7 @@ async function openRow(id){
  const pq=S.reqs.filter(q=>q.estado==='pendente'&&(q.carga_ids||[]).includes(id));
  openDrawer(`${esc(r.dest||r.col||'Carga')}<p>${r.nf?'NF '+esc(r.nf)+' · ':''}${esc(laneName(l))}${r.pendente?' · rascunho aguardando aprovação':''}</p>`,
   `${pq.length?`<div class="box"><h4>Aguardando aprovação</h4>${pq.map(q=>`<div class="meta">${esc(userName(q.usuario_id))}: ${esc(acaoNome(q.acao_id))}${q.mudancas&&q.mudancas.length?' — '+q.mudancas.map(c=>`${LABEL[c.campo]||c.campo} → ${c.para||'vazio'}`).join(', '):''}${q.faixa_destino?' → '+esc(laneName(laneById(q.faixa_destino))):''}</div>`).join('')}</div>`:''}
-   <div class="form">${fields}<div class="fld full"><label><span>Motivo da alteração (opcional, vai para o histórico e para quem aprova)</span></label><input id="why"></div></div>${mv}
+   ${recBox(id)}<div class="form">${fields}<div class="fld full"><label><span>Motivo da alteração (opcional, vai para o histórico e para quem aprova)</span></label><input id="why"></div></div>${mv}
    <div class="box"><h4>Histórico desta carga</h4><div id="rowHist" class="empty">Carregando…</div></div>`,
   `${exd.r!=='deny'?`<button class="btn no" id="delRow" style="margin-right:auto">${exd.r==='allow'?'Excluir carga':'Solicitar exclusão'}</button>`:''}<button class="btn" data-act="close">Fechar</button><button class="btn pri" id="saveRow">Salvar alterações</button>`);
  $('saveRow').onclick=async()=>{const ch={};document.querySelectorAll('#dBody [data-f]').forEach(el=>{if(!el.disabled)ch[el.dataset.f]=el.value.trim()});
@@ -805,7 +858,7 @@ async function openImport(){
    const{data,error}=await sb.rpc('importar_dia',{p_data:d.data,p_lembretes:d.lembretes,p_faixas:d.faixas,p_substituir:impState.exist.has(d.data),p_origem:impState.file});
    li.lastChild.innerHTML=error?`<span style="color:var(--risk)">${dayLabel(d.data)}: ${esc(error.message)}</span>`:`${dayLabel(d.data)}: ${data.faixas} veículos/seções e ${data.linhas} linhas importadas${data.substituiu?` (substituiu ${data.antes} cargas)`:''}`;
    if(!error)okN++}
-  await loadDays();if(todo.some(({d})=>d.data===S.day)||!S.day){if(!S.day)S.day=S.days[0]?.data||null;await loadDay()}renderBoard();
+  RECDAY=null;await loadDays();if(todo.some(({d})=>d.data===S.day)||!S.day){if(!S.day)S.day=S.days[0]?.data||null;await loadDay()}renderBoard();
   toast(`${okN} de ${todo.length} dia(s) importado(s)`,okN<todo.length)};
 }
 
@@ -869,9 +922,9 @@ function openBackup(){
 }
 
 /* ---------- novo dia ---------- */
-function openNewDay(){
+function openNewDay(preset){
  if(decide('veiculo').r!=='allow')return deny('Seu perfil não abre dias');panel='newday';
- const t=new Date();t.setDate(t.getDate()+1);const def=t.toISOString().slice(0,10),base=S.days[0]?.data;
+ const t=new Date();t.setDate(t.getDate()+1);const def=preset||todayISO(),base=S.days[0]?.data;
  openDrawer('Abrir novo dia<p>Cria o dia já com os veículos copiados de outro dia (sem as cargas).</p>',
   `<div class="form"><div class="fld full"><label>Data do novo dia</label><input type="date" id="ndDate" value="${def}"></div>
    <div class="fld full"><label>Copiar veículos de</label><select id="ndFrom"><option value="">Não copiar (dia vazio)</option>${S.days.map(d=>`<option value="${d.data}" ${d.data===base?'selected':''}>${dayLabel(d.data)}/${d.data.slice(0,4)}</option>`).join('')}</select></div>
@@ -921,14 +974,14 @@ document.addEventListener('change',async e=>{const t=e.target;
  if(t.dataset.act==='st'){const id=t.dataset.id,{ok,asked}=await applyEdits(id,{status:t.value},'');if(ok)flash([id]);if(asked)toast('Mudança de status enviada para aprovação')}
  else if(t.dataset.act==='sel'){t.checked?sel.add(t.dataset.id):sel.delete(t.dataset.id);t.closest('.row').classList.toggle('sel',t.checked);renderBulk()}
 });
-async function selectDay(d){S.day=d;sel.clear();localStorage.setItem(LKEY+'-day',d);try{await loadDay()}catch(e){fail(e,'Carregar dia')}renderBoard()}
+async function selectDay(d){if(!S.days.some(x=>x.data===d)){if(decide('veiculo').r==='allow'){openNewDay(d);return}return toast('O dia '+dayLabel(d)+' ainda não foi aberto pela Programação',true)}S.day=d;sel.clear();localStorage.setItem(LKEY+'-day',d);try{await loadDay()}catch(e){fail(e,'Carregar dia')}renderBoard()}
 $('dClose').onclick=closeDrawer;$('scrim').onclick=closeDrawer;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer()});
-['q','fResp','fSt','fMine','fChanged'].forEach(id=>$(id).addEventListener(id==='q'?'input':'change',()=>{if(filtering())S.lanes.forEach(l=>UI.open[l.id]=true);renderBoard()}));
+['q','fResp','fSt','fMine','fChanged','fRec'].forEach(id=>$(id).addEventListener(id==='q'?'input':'change',()=>{if(filtering())S.lanes.forEach(l=>UI.open[l.id]=true);renderBoard()}));
 $('fView').onchange=e=>{UI.view=e.target.value;saveUI();renderBoard()};
 $('btnOpenAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=true);saveUI();renderBoard()};
 $('btnCloseAll').onclick=()=>{S.lanes.forEach(l=>UI.open[l.id]=false);saveUI();renderBoard();window.scrollTo({top:0})};
-$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=openNewDay;$('btnImport').onclick=openImport;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
+$('btnHist').onclick=renderHist;$('btnReq').onclick=renderReqs;$('btnAdm').onclick=openAdmin;$('btnNewDay').onclick=()=>openNewDay();$('btnImport').onclick=openImport;$('btnBackup').onclick=openBackup;setInterval(renderBackupNote,5*60*1000);
 $('btnOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 $('bulkClear').onclick=()=>{sel.clear();renderBoard()};
 $('bulkGo').onclick=async()=>{const to=$('bulkTo').value;if(!to)return toast('Escolha o destino',true);const ids=[...sel];sel.clear();await moveRows(ids,to,$('bulkWhy').value.trim());$('bulkWhy').value=''};
