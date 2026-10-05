@@ -435,6 +435,7 @@ select.prio:disabled{opacity:1;cursor:not-allowed}
     <button class="tbtn" id="btnOpenAll">Expandir todos</button>
     <label>Colunas <select id="fView"><option value="c">Compacta</option><option value="f">Completa (como a planilha)</option></select></label>
     <button class="tbtn" id="btnCloseAll" style="margin-left:auto">Resumir todos</button>
+    <a class="tbtn hide" id="btnKpi" href="kpi.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">📊 KPI</a>
     <a class="tbtn hide" id="btnMapa" href="mapa.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">🗺️ Roteirização</a>
     <button class="tbtn" id="btnBrudam">Coletas Brudam</button>
     <button class="tbtn" id="btnImport">Importar planilha</button>
@@ -469,7 +470,7 @@ const SUPA_KEY='sb_publishable_0iJyFXb_I-YrdY3dsGALHA_OVoEv9cw';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
 const LKEY='px-programacao-ui-v1';
 
-const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros',importar:'importar planilhas',backup:'backup',prioridade:'prioridade de carregamento',roteirizar:'roteirização (mapa)'};
+const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros',importar:'importar planilhas',backup:'backup',prioridade:'prioridade de carregamento',roteirizar:'roteirização (mapa)',kpi:'KPI'};
 const NOROW=new Set(['veiculo','admin','importar','backup','roteirizar']);const SIMPLE=new Set(['admin','importar','backup','roteirizar']);
 const FIELD_ACT={hprog:'horarios',cheg:'horarios',hfim:'horarios',peso:'pesovol',vol:'pesovol',cbm:'pesovol',valor:'valor',
  col:'dados',dest:'dados',cidade:'dados',endent:'dados',serv:'dados',pag:'dados',cot:'dados',nf:'docs',oc:'docs',md:'docs',gr:'docs',end_ref:'docs',status:'status',obs:'obs',resp:'resp',prioridade:'prioridade'};
@@ -655,7 +656,7 @@ function renderTop(){
  $('roleNote').innerHTML=`<span class="live ${liveOn?'on':''}" title="${liveOn?'Atualização em tempo real ativa':'Conectando…'}"></span><b>${esc(me().nome)}</b> (${esc(perfil().nome)}) · ${permSummary()}`;
  $('btnAdm').classList.toggle('hide',decide('admin').r!=='allow');
  $('btnNewDay').classList.toggle('hide',decide('veiculo').r!=='allow');
- $('btnImport').classList.toggle('hide',decide('importar').r!=='allow');$('btnMapa').classList.toggle('hide',decide('roteirizar').r!=='allow');$('btnBackup').classList.toggle('hide',decide('backup').r!=='allow');
+ $('btnImport').classList.toggle('hide',decide('importar').r!=='allow');$('btnMapa').classList.toggle('hide',decide('roteirizar').r!=='allow');$('btnKpi').classList.toggle('hide',((S.perms[me().perfil_id]||{}).kpi||'bloq')==='bloq');$('btnBackup').classList.toggle('hide',decide('backup').r!=='allow');
  const resp=[...new Set(Object.values(S.rows).map(r=>r.resp).filter(Boolean).map(s=>s.trim()))].filter(s=>s.length<20).sort();
  const fr=$('fResp').value;$('fResp').innerHTML='<option value="">Todos</option>'+resp.map(r=>`<option ${r===fr?'selected':''}>${esc(r)}</option>`).join('');
  const fs=$('fSt').value;$('fSt').innerHTML='<option value="">Todos</option>'+STATUS.map(r=>`<option ${r===fs?'selected':''}>${r}</option>`).join('');
@@ -917,7 +918,7 @@ function renderAdmin(){
   body=`<p class="adm-help">Para cada ação, escolha a regra de cada perfil. Quando a regra envolve aprovação, a alteração fica pendente até alguém de um perfil marcado em "Quem aprova" aceitar. Ninguém aprova o próprio pedido. O banco confere essas regras a cada gravação.</p>
   <div class="adm-wrap"><table class="adm"><thead><tr><th>Ação</th>${P.map((p,i)=>`<th><input type="text" data-p="${i}" value="${esc(p.nome)}" aria-label="Nome do perfil" style="font-weight:650"></th>`).join('')}<th>Quem aprova</th></tr></thead><tbody>
   ${S.acoes.map(a=>{const simple=SIMPLE.has(a.id),norow=NOROW.has(a.id);return `<tr><td class="act">${esc(a.nome)}${a.detalhe?`<small>${esc(a.detalhe)}</small>`:''}</td>
-   ${P.map(p=>{const v=(draft.perms[p.id]||{})[a.id]||'bloq';const modes=simple?MODES.filter(m=>['livre','bloq'].includes(m[0])):norow?MODES.filter(m=>!m[0].startsWith('proprias')):MODES;
+   ${P.map(p=>{const v=(draft.perms[p.id]||{})[a.id]||'bloq';const modes=a.id==='kpi'?MODES.filter(m=>['livre','proprias','bloq'].includes(m[0])):simple?MODES.filter(m=>['livre','bloq'].includes(m[0])):norow?MODES.filter(m=>!m[0].startsWith('proprias')):MODES;
     return `<td><select class="m" data-v="${v}" data-pp="${p.id}" data-a="${a.id}">${modes.map(m=>`<option value="${m[0]}" ${m[0]===v?'selected':''}>${m[1]}</option>`).join('')}</select></td>`}).join('')}
    <td>${simple?'<span class="muted">—</span>':`<div class="apv">${P.map(p=>`<label><input type="checkbox" data-ap="${a.id}" value="${p.id}" ${(draft.approvers[a.id]||[]).includes(p.id)?'checked':''}>${esc(p.nome)}</label>`).join('')}</div>`}</td></tr>`}).join('')}
   </tbody></table></div><button class="btn adm-add" data-adm="addProfile">+ Novo perfil</button>`;
@@ -1354,8 +1355,11 @@ async function start(){
  if(!S.me){await sb.auth.signOut();return showLogin(`O login ${email} existe, mas não está cadastrado ou está inativo na Programação. Fale com a Coordenação.`)}
  if(S.me.trocar_senha)return showForce();
  $('login').classList.add('hide');['app-top','sum'].forEach(id=>$(id).classList.remove('hide'));
- try{await loadDays();const saved=localStorage.getItem(LKEY+'-day');S.day=S.days.some(d=>d.data===saved)?saved:(S.days[0]?.data||null);await loadDay()}catch(e){fail(e,'Carregar')}
- $('loading').classList.add('hide');renderBoard();loadLastBackup();
+ const QP=new URLSearchParams(location.search);
+ try{await loadDays();const saved=QP.get('dia')||localStorage.getItem(LKEY+'-day');S.day=S.days.some(d=>d.data===saved)?saved:(S.days[0]?.data||null);await loadDay()}catch(e){fail(e,'Carregar')}
+ $('loading').classList.add('hide');
+ {const cg=QP.get('carga');if(cg&&S.rows[cg]){UI.open[S.rows[cg].faixa_id]=true;renderBoard();openRow(cg);requestAnimationFrame(()=>document.querySelector(`.row[data-id="${cg}"]`)?.scrollIntoView({block:'center'}));history.replaceState(null,'',location.pathname)}}
+ renderBoard();loadLastBackup();
  if(!channel){channel=sb.channel('programacao')
   .on('postgres_changes',{event:'*',schema:'public',table:'cargas'},()=>scheduleReload())
   .on('postgres_changes',{event:'*',schema:'public',table:'faixas'},()=>scheduleReload())
