@@ -784,6 +784,7 @@ function cadastroResumo(e){let a=null,b=null;try{a=e.de?JSON.parse(e.de):null;b=
  if(t==='aprovadores'){const x=b||a;return `${op==='DELETE'?'removeu':'incluiu'} ${S.profiles.find(p=>p.id===x.perfil_id)?.nome||x.perfil_id} como aprovador de ${ACTIONS_CURTO[x.acao_id]||x.acao_id}`}
  if(t==='usuarios'){const x=b||a;if(op==='INSERT')return `cadastrou ${x.nome} (${x.email})`;const diff=Object.keys(b||{}).filter(k=>k!=='criado_em'&&JSON.stringify(a?.[k])!==JSON.stringify(b?.[k])).map(k=>`${k}: ${a?.[k]??'vazio'} → ${b?.[k]??'vazio'}`);return `${x.nome}: ${diff.join(', ')||'sem mudança'}`}
  if(t==='senha')return e.detalhes?.texto||'alterou senha';
+ if(t==='responsaveis'){const x=b||a;return `${x.nome}: supervisor ${a?.supervisor_chave||'nenhum'} → ${b?.supervisor_chave||'nenhum'}`}
  if(t==='placas'){const x=b||a;return op==='INSERT'?`cadastrou a placa ${x.placa} como ${FROTA_N[x.tipo]}`:op==='DELETE'?`removeu a placa ${x.placa} (passa a ser Terceiro)`:`placa ${x.placa}: ${FROTA_N[a?.tipo]}${a?.ativo?'':' (inativa)'} → ${FROTA_N[b?.tipo]}${b?.ativo?'':' (inativa)'}`}
  if(t==='perfis'){const x=b||a;return op==='INSERT'?`criou perfil ${x.nome}`:`perfil ${a?.nome} → ${b?.nome}`}
  return t}
@@ -880,14 +881,31 @@ function renderReqs(){
 }
 
 /* ---------- cadastros ---------- */
+const rkey=s=>norm(s);
+async function loadRespDraft(){$('dBody').innerHTML='<div class="empty">Carregando nomes…</div>';
+ try{const [tab,uso]=await Promise.all([q(sb.from('responsaveis').select('*')),q(sb.rpc('responsaveis_em_uso'))]);
+  const m=new Map();uso.forEach(u=>{const k=rkey(u.nome);if(k&&!m.has(k))m.set(k,{chave:k,nome:u.nome,qtd:+u.qtd,supervisor_chave:null})});
+  tab.forEach(t=>{const x=m.get(t.chave)||{chave:t.chave,nome:t.nome,qtd:0};x.supervisor_chave=t.supervisor_chave;x._db=true;x.nome=t.nome||x.nome;m.set(t.chave,x)});
+  S.users.filter(u=>u.ativo&&u.nome_programacao).forEach(u=>{const k=rkey(u.nome_programacao);if(!m.has(k))m.set(k,{chave:k,nome:u.nome_programacao,qtd:0,supervisor_chave:null})});
+  draft.resps=[...m.values()].sort((a,b)=>a.nome.localeCompare(b.nome));draft._respOrig=JSON.stringify(tab.map(t=>[t.chave,t.supervisor_chave]).sort());renderAdmin()}
+ catch(e){$('dBody').innerHTML=`<div class="empty">Não foi possível carregar: ${esc(e.message)}. Rode o script 15_responsaveis_supervisores.sql.</div>`}}
 function genPass(){const L='ABCDEFGHJKLMNPQRSTUVWXYZ',l='abcdefghijkmnpqrstuvwxyz',d='23456789',r=n=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%n},p=s=>s[r(s.length)];return 'Px'+p(L)+p(l)+p(l)+p(l)+p(d)+p(d)+p(d)+'!'}
 let admTab='users',draft=null,LOGINS=null,pwFor=null;
 function openAdmin(){if(decide('admin').r!=='allow')return deny('Seu perfil não administra cadastros');
  panel='adm';pwFor=null;LOGINS=null;sb.rpc('logins_status').then(({data,error})=>{LOGINS=error?{}:Object.fromEntries((data||[]).map(x=>[x.email,x]));if(panel==='adm'&&admTab==='users')renderAdmin()});draft=JSON.parse(JSON.stringify({users:S.users,profiles:S.profiles,perms:S.perms,approvers:S.approvers,placas:S.placas}));renderAdmin()}
 function renderAdmin(){
  const P=draft.profiles;let body='';
- const tabs=`<div class="tabs" role="tablist"><button role="tab" data-tab="users" aria-selected="${admTab==='users'}">Usuários e logins</button><button role="tab" data-tab="perms" aria-selected="${admTab==='perms'}">Perfis e permissões</button><button role="tab" data-tab="placas" aria-selected="${admTab==='placas'}">Placas (frota e agregados)</button></div>`;
- if(admTab==='placas'){
+ const tabs=`<div class="tabs" role="tablist"><button role="tab" data-tab="users" aria-selected="${admTab==='users'}">Usuários e logins</button><button role="tab" data-tab="perms" aria-selected="${admTab==='perms'}">Perfis e permissões</button><button role="tab" data-tab="placas" aria-selected="${admTab==='placas'}">Placas (frota e agregados)</button><button role="tab" data-tab="resp" aria-selected="${admTab==='resp'}">Responsáveis e supervisores</button></div>`;
+ if(admTab==='resp'){
+  if(!draft.resps)return void loadRespDraft();
+  const opts=k=>`<option value="">— sem supervisor —</option>`+draft.resps.filter(x=>x.chave!==k).map(x=>`<option value="${esc(x.chave)}" ${draft.resps.find(y=>y.chave===k)?.supervisor_chave===x.chave?'selected':''}>${esc(x.nome)}</option>`).join('');
+  const sups=new Set(draft.resps.map(x=>x.supervisor_chave).filter(Boolean));
+  body=`<p class="adm-help">Lista de todos os nomes que aparecem na coluna <b>Responsável</b> nos últimos 120 dias. Ligue cada pessoa ao seu <b>supervisor</b>. No KPI, o supervisor passa a ver as próprias cargas e as da equipe, e a Coordenação pode ver os números por pessoa ou por equipe. Nomes escritos de jeitos diferentes (Júlia, JULIA, julia) contam como a mesma pessoa.</p>
+  <div class="adm-wrap"><table class="adm"><thead><tr><th>Responsável (como aparece na programação)</th><th>Linhas (120 dias)</th><th>Supervisor</th><th>Equipe</th></tr></thead><tbody>
+  ${draft.resps.map((x,i)=>`<tr><td><b>${esc(x.nome)}</b></td><td>${x.qtd??'—'}</td><td><select data-rs="${i}">${opts(x.chave)}</select></td><td>${sups.has(x.chave)?`<span class="pend" style="background:var(--navy);color:#fff">supervisor de ${draft.resps.filter(y=>y.supervisor_chave===x.chave).length}</span>`:''}</td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="row2" style="margin-top:10px"><input id="rsNovo" placeholder="Incluir um nome que ainda não aparece (ex.: supervisor sem cargas)" style="max-width:420px"><button class="btn" data-adm="rsAdd">+ Incluir</button></div>`;
+ }else if(admTab==='placas'){
   const known=new Set(draft.placas.map(p=>p.placa));
   const used=[...new Set(S.lanes.filter(l=>l.tipo==='veiculo').flatMap(l=>extractPlates(l.placa)))].filter(p=>!known.has(p)).sort();
   body=`<p class="adm-help">Cadastre aqui as placas da <b>Frota</b> (veículos da Portoex) e dos <b>Agregados</b> (veículos com contrato). Qualquer placa fora desta lista é considerada <b>Terceiro</b>. Escreva a placa sem espaço, hífen ou barra (ex.: QSU6I78). Em conjunto cavalo + carreta, basta uma das placas estar cadastrada; se uma for Frota e a outra Agregado, vale Frota.</p>
@@ -943,6 +961,8 @@ async function saveAdmin(){
    for(const p of S.placas)if(!nw.has(p.placa))await run(sb.from('placas').delete().eq('placa',p.placa),'placa '+p.placa);
    for(const p of draft.placas){const o=old.get(p.placa),rec={placa:p.placa,tipo:p.tipo,descricao:p.descricao||null,ativo:!!p.ativo};
     if(!o)await run(sb.from('placas').insert(rec),'placa '+p.placa);else if(o.tipo!==rec.tipo||(o.descricao||null)!==rec.descricao||o.ativo!==rec.ativo)await run(sb.from('placas').update(rec).eq('placa',p.placa),'placa '+p.placa)}}
+  if(draft.resps){const ch=draft.resps.filter(x=>x._dirty||x._new).map(x=>({chave:x.chave,nome:x.nome,supervisor_chave:x.supervisor_chave||null}));
+   if(ch.length)await run(sb.from('responsaveis').upsert(ch,{onConflict:'chave'}),'responsáveis')}
   for(const u of draft.users){const rec={nome:u.nome.trim(),email:u.email.trim().toLowerCase(),setor:u.setor||null,perfil_id:u.perfil_id,nome_programacao:u.nome_programacao||null,ativo:!!u.ativo};
    const o=S.users.find(x=>x.id===u.id);
    if(!o)await run(sb.from('usuarios').insert(rec),'usuário '+rec.nome);
@@ -1266,6 +1286,7 @@ document.addEventListener('click',async e=>{
    t.disabled=true;const{data,error}=await sb.rpc('admin_definir_senha',{p_email:u.email,p_senha:pw,p_trocar:$('pwForce').checked});t.disabled=false;
    if(error)return fail(error,'Senha');try{await navigator.clipboard.writeText(pw)}catch(e){}
    toast(`${u.nome}: ${data}. Senha copiada para a área de transferência.`);pwFor=null;await loadMeta();draft.users=JSON.parse(JSON.stringify(S.users));const r=await sb.rpc('logins_status');LOGINS=Object.fromEntries((r.data||[]).map(x=>[x.email,x]));renderAdmin();return}
+  if(a==='rsAdd'){const v=$('rsNovo').value.trim(),k=rkey(v);if(!k)return;if(!draft.resps.some(x=>x.chave===k))draft.resps.push({chave:k,nome:v,qtd:0,supervisor_chave:null,_new:true});draft.resps.sort((a,b)=>a.nome.localeCompare(b.nome));renderAdmin();return}
   if(a==='addPlaca'){draft.placas.unshift({placa:t.dataset.placa||'',tipo:t.dataset.tipo||'frota',descricao:'',ativo:true,_new:true});renderAdmin();return}
   if(a==='delPlaca'){const p=draft.placas[+t.dataset.i];if(p&&confirm('Remover a placa '+(p.placa||'')+'? Ela passa a contar como Terceiro.')){draft.placas.splice(+t.dataset.i,1);renderAdmin()}return}
   if(a==='addProfile'){const id='p'+Date.now().toString(36);draft.profiles.push({id,nome:'Novo perfil'});draft.perms[id]=Object.fromEntries(S.acoes.map(x=>[x.id,'bloq']));renderAdmin()}
@@ -1284,6 +1305,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('change',async e=>{const t=e.target;
  if(t.id==='dayPick'&&t.value){await selectDay(t.value);return}
  if(t.dataset.u!=null){const u=draft.users[+t.dataset.u];u[t.dataset.k]=t.type==='checkbox'?t.checked:t.value.trim();if(t.type==='checkbox')t.closest('tr').classList.toggle('off',!t.checked);return}
+ if(t.dataset.rs!=null){draft.resps[+t.dataset.rs].supervisor_chave=t.value||null;draft.resps[+t.dataset.rs]._dirty=true;return}
  if(t.dataset.pl!=null){const p=draft.placas[+t.dataset.pl],k=t.dataset.k;p[k]=t.type==='checkbox'?t.checked:k==='placa'?normPlate(t.value):t.value.trim();if(k==='placa')t.value=p[k];if(t.type==='checkbox')t.closest('tr').classList.toggle('off',!t.checked);return}
  if(t.dataset.p!=null){draft.profiles[+t.dataset.p].nome=t.value.trim()||'Sem nome';return}
  if(t.dataset.pp){(draft.perms[t.dataset.pp]=draft.perms[t.dataset.pp]||{})[t.dataset.a]=t.value;t.dataset.v=t.value;return}
