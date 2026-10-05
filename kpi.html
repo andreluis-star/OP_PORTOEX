@@ -108,6 +108,14 @@ main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
 .pr.ph2 .pnum{font-family:var(--font);font-size:11px}
 .pbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line2)}.pbar i{display:block;height:100%}
 .pr.sup{background:#F4F6FA}.pr.sup .pn{color:var(--navy)}.pr.sub .pn{padding-left:18px}
+.exp{border:none;background:var(--surface2);border-radius:4px;width:20px;height:20px;margin-right:6px;font-size:11px;color:var(--navy);vertical-align:1px}
+.pr.zero{opacity:.55}.plist{max-height:560px}
+.pdet{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 16px 12px 42px;background:#FAFBFC;border-bottom:1px solid var(--line2)}
+.pcol h4{margin:4px 0 6px;font-family:var(--cond);font-size:16px;text-transform:uppercase;letter-spacing:.4px}.pcol.r h4{color:var(--orange)}.pcol.l h4{color:var(--navy)}
+.pit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:12.5px}.pit:hover{background:#EEF2F8}
+.pit .a{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pit .m{grid-column:1;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pit .t{grid-row:1/3;grid-column:2;display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:260px}
+.pcol .m{color:var(--muted);font-size:12px}
 @media (max-width:1100px){.cols{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -163,7 +171,7 @@ const firstWords=n=>{const w=String(n||'').replace(/^redespacho\s+/i,'').trim().
 const ckey=r=>{const nf=nfList(r.nf).join('-'),d=norm(firstWords(r.dest));return nf?'nf:'+nf+'|'+d:(d?'cd:'+norm(r.col).slice(0,40)+'|'+d:null)};
 
 const rkey=s=>norm(s);
-const S={unames:{},sup:'',resps:{},grp:'pessoa',me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
+const S={allNames:[],showZero:true,openP:new Set(),unames:{},sup:'',resps:{},grp:'pessoa',me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
 const STC={'OK':'#1F8A4C','Em rota':'#2F78C4','Programado':'#7FA6D9','Em definição':'#A8B3BD','Ocorrência':'#C27612','Reprogramado':'#6A4BA0','Não realizado':'#C0392B','Cancelado':'#333'};
 const BRC={entregue:['Entregue','#1F8A4C'],parcial:['Parcial','#C27612'],nao_entregue:['Não entregue','#C0392B'],manifestada:['Em rota','#2F78C4'],ocorrencia:['Ocorrência','#8A6D3B'],'':['Sem baixa','#C9D1D8']};
 const FROTA={frota:['Frota','pf','#1A3A6E'],agregado:['Agregado','pa','#E8611A'],terceiro:['Terceiro','pt3','#F3A57A']};
@@ -263,8 +271,8 @@ function render(){
  const [ini,fim]=S.range;
  $('hero').innerHTML=`
   <div class="hk"><div class="l">Cargas no período</div><div class="v">${n0(sA.n)}</div><div class="s">${ini===fim?dayLabel(ini):dayLabel(ini)+' a '+dayLabel(fim)} · ${brlK(sA.val)} · ${kg(sA.peso)}</div></div>
-  <div class="hk"><div class="l">Carregadas</div><div class="v">${pct(sL.n,sA.n)}%</div><div class="s">${n0(sL.n)} NFs · ${brlK(sL.val)}</div><div class="meter" style="width:${pct(sL.n,sA.n)}%"></div></div>
-  <div class="hk or"><div class="l">Indefinidas / não carregadas</div><div class="v">${pct(sR.n,sA.n)}%</div><div class="s">${n0(sR.n)} NFs · ${brlK(sR.val)}</div><div class="meter" style="width:${pct(sR.n,sA.n)}%"></div></div>
+  <div class="hk"><div class="l">Envios (carregadas)</div><div class="v">${pct(sL.n,sA.n)}%</div><div class="s">${n0(sL.n)} NFs · ${brlK(sL.val)}</div><div class="meter" style="width:${pct(sL.n,sA.n)}%"></div></div>
+  <div class="hk or"><div class="l">Pendências (indefinidas / não carregadas)</div><div class="v">${pct(sR.n,sA.n)}%</div><div class="s">${n0(sR.n)} NFs · ${brlK(sR.val)}</div><div class="meter" style="width:${pct(sR.n,sA.n)}%"></div></div>
   <div class="hk ok"><div class="l">Entregues (baixa Brudam)</div><div class="v">${pct(ent,sL.n)}%</div><div class="s">${n0(ent)} de ${n0(sL.n)} carregadas</div><div class="meter" style="width:${pct(ent,sL.n)}%"></div></div>
   <div class="hk"><div class="l">Indefinidas no pátio</div><div class="v">${S.inv?pct(invR,R.length)+'%':'…'}</div><div class="s">${n0(invR)} no pátio · <b style="color:var(--risk)">${n0(invN)} não localizadas</b></div><div class="meter" style="width:${pct(invR,R.length)}%;background:var(--ok)"></div></div>`;
 
@@ -305,18 +313,25 @@ function render(){
 function stats(rs){const L=rs.filter(carregada),R=rs.filter(r=>!carregada(r));return{n:rs.length,l:L.length,r:R.length,ent:L.filter(r=>r.brudam_situacao==='entregue').length,
  nao:R.filter(r=>invOf(r)?.st==='nao').length,patio:R.filter(r=>invOf(r)?.st==='lido').length,velhas:R.filter(r=>r._ndias>=3).length,val:rs.reduce((a,r)=>a+num(r.valor),0)}}
 function personRow(k,rs,isSup){const st=stats(rs),sel=(isSup?S.sup===k:S.resp===k);
- return `<div class="pr ${sel?'sel':''} ${isSup?'sup':''}" data-${isSup?'psup':'pres'}="${esc(k)}"><span class="pn">${isSup?'👥 ':''}${esc(isSup?('Equipe de '+nomeDe(k)):nomeDe(k))}${!isSup&&supOf(k)?`<small>sup. ${esc(nomeDe(supOf(k)))}</small>`:''}</span>
+ const op=!isSup&&S.openP.has(k);
+ return `<div class="pr ${sel?'sel':''} ${isSup?'sup':''} ${st.n?'':'zero'}" data-${isSup?'psup':'pres'}="${esc(k)}"><span class="pn">${isSup?'👥 ':`<button class="exp" data-exp="${esc(k)}" title="Ver o que esta pessoa tem de envios e pendências">${op?'▾':'▸'}</button>`}${esc(isSup?('Equipe de '+nomeDe(k)):nomeDe(k))}${!isSup&&supOf(k)?`<small>sup. ${esc(nomeDe(supOf(k)))}</small>`:''}</span>
   <span class="pnum">${n0(st.n)}</span>
   <span class="pbar" title="${st.l} carregadas · ${st.r} indefinidas"><i style="width:${pct(st.l,st.n)}%;background:var(--navy)"></i><i style="width:${pct(st.r,st.n)}%;background:var(--orange)"></i></span>
   <span class="pnum" style="color:var(--navy)">${pct(st.l,st.n)}%</span><span class="pnum" style="color:var(--orange)">${n0(st.r)}</span>
-  <span class="pnum" style="color:var(--ok)">${st.l?pct(st.ent,st.l)+'%':'—'}</span><span class="pnum" style="color:var(--risk)">${n0(st.nao)}</span><span class="pnum" style="color:var(--plum)">${n0(st.velhas)}</span><span class="pnum">${brlK(st.val)}</span></div>`}
+  <span class="pnum" style="color:var(--ok)">${st.l?pct(st.ent,st.l)+'%':'—'}</span><span class="pnum" style="color:var(--risk)">${n0(st.nao)}</span><span class="pnum" style="color:var(--plum)">${n0(st.velhas)}</span><span class="pnum">${brlK(st.val)}</span></div>${op?detailP(rs):''}`}
+function detailP(rs){const L=rs.filter(carregada),R=rs.filter(r=>!carregada(r)),lim=40;
+ const li=(r,extra)=>`<div class="pit" data-id="${r.id}"><span class="a">${esc(r.dest||r.col||'—')}</span><span class="m">${r.nf?'NF '+esc(String(r.nf).slice(0,18))+' · ':''}${esc(r.cidade||'')} · ${n0(num(r.vol))} vol · ${kg(num(r.peso))}</span><span class="t">${extra}</span></div>`;
+ return `<div class="pdet"><div class="pcol r"><h4>Pendências · ${R.length}</h4>${R.length?R.sort((a,b)=>b._ndias-a._ndias).slice(0,lim).map(r=>li(r,`<span class="tag t-gr">${esc(motivoR(r))}</span>${invTag(r)}${r._ndias>1?`<span class="tag t-age">${r._ndias}º dia</span>`:''}`)).join('')+(R.length>lim?`<div class="m">+ ${R.length-lim}…</div>`:''):'<div class="m">Nenhuma pendência 👏</div>'}</div>
+  <div class="pcol l"><h4>Envios · ${L.length}</h4>${L.length?L.slice(0,lim).map(r=>li(r,`<span class="pt ${FROTA[frotaOf(r._f.placa)][1]}">${esc(extractPlates(r._f.placa)[0]||'—')}</span>${stTag(r.status)}${brTag(r)}`)).join('')+(L.length>lim?`<div class="m">+ ${L.length-lim}…</div>`:''):'<div class="m">Nenhum envio no período.</div>'}</div></div>`}
 function peopleHTML(){const rs=base(),g=groupBy(rs,r=>rkey(r.resp)||'');
  const head=`<div class="ph" style="border-top:5px solid var(--navy)"><h2 style="color:var(--navy)">Por ${S.grp==='pessoa'?'responsável':'supervisor'}</h2>
   <div class="seg" style="margin-left:12px"><button data-grp="pessoa" class="${S.grp==='pessoa'?'on':''}">Pessoas</button><button data-grp="sup" class="${S.grp==='sup'?'on':''}">Supervisores</button></div>
-  <span style="margin-left:auto;font-size:12px;color:var(--muted)">Clique numa linha para ver o painel só daquela ${S.grp==='pessoa'?'pessoa':'equipe'}${S.resp||S.sup?' · <a href="#" data-pclr="1">ver todos</a>':''}</span></div>
-  <div class="pr ph2"><span class="pn">${S.grp==='pessoa'?'Responsável':'Supervisor / equipe'}</span><span class="pnum">NFs</span><span>carregadas × indefinidas</span><span class="pnum">% carreg.</span><span class="pnum">indefin.</span><span class="pnum">entregues</span><span class="pnum" title="Indefinidas não localizadas no inventário">não no pátio</span><span class="pnum" title="Indefinidas há 3 dias ou mais">3+ dias</span><span class="pnum">valor</span></div>`;
+  <label style="margin-left:14px;font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" data-zero="1" ${S.showZero?'checked':''}> mostrar quem não tem cargas no período</label>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted)">▸ abre envios e pendências da pessoa · clique na linha para filtrar o painel${S.resp||S.sup?' · <a href="#" data-pclr="1">ver todos</a>':''}</span></div>
+  <div class="pr ph2"><span class="pn">${S.grp==='pessoa'?'Responsável':'Supervisor / equipe'}</span><span class="pnum">NFs</span><span>envios × pendências</span><span class="pnum">% enviado</span><span class="pnum">pendências</span><span class="pnum">entregues</span><span class="pnum" title="Indefinidas não localizadas no inventário">não no pátio</span><span class="pnum" title="Indefinidas há 3 dias ou mais">3+ dias</span><span class="pnum">valor</span></div>`;
  let body='';
- if(S.grp==='pessoa'){body=[...g].sort((a,b)=>b[1].length-a[1].length).map(([k,v])=>personRow(k,v,false)).join('')}
+ if(S.grp==='pessoa'){if(S.showZero){const ks=new Set([...S.allNames.map(x=>x.k),...Object.keys(S.resps)]);ks.forEach(k=>{if(!g.has(k)&&(S.mode==='livre'||allowed({resp:k}))&&(!S.sup||supOf(k)===S.sup||k===S.sup))g.set(k,[])})}
+  body=[...g].sort((a,b)=>b[1].length-a[1].length||nomeDe(a[0]).localeCompare(nomeDe(b[0]))).map(([k,v])=>personRow(k,v,false)).join('')}
  else{const gs=groupBy(rs,r=>supOf(rkey(r.resp))||'');body=[...gs].sort((a,b)=>b[1].length-a[1].length).map(([sk,v])=>(sk?personRow(sk,v,true):`<div class="pr sup"><span class="pn">Sem supervisor definido</span></div>`)+[...groupBy(v,r=>rkey(r.resp)||'')].sort((a,b)=>b[1].length-a[1].length).map(([k,vv])=>personRow(k,vv,false).replace('class="pr','class="pr sub')).join('')).join('')}
  return head+`<div class="plist">${body||'<div class="empty">Sem cargas no período.</div>'}</div>`}
 function item(r,extra){return `<div class="it" data-id="${r.id}"><div class="a">${esc(r.dest||r.col||'—')}</div><div class="c">${extra}</div>
@@ -346,6 +361,8 @@ const closeD=()=>{$('drawer').classList.remove('on');$('scrim').classList.remove
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
  const f=e.target.closest('[data-f]');if(f){const [side,dim,k]=f.dataset.f.split('|');const cur=side==='L'?S.fL:S.fR,nf=cur&&cur.dim===dim&&cur.k===k?null:{dim,k};side==='L'?S.fL=nf:S.fR=nf;render();return}
+ const ex=e.target.closest('[data-exp]');if(ex){const k=ex.dataset.exp;S.openP.has(k)?S.openP.delete(k):S.openP.add(k);render();return}
+ const pi=e.target.closest('.pit');if(pi){openItem(pi.dataset.id);return}
  const gp=e.target.closest('[data-grp]');if(gp){S.grp=gp.dataset.grp;render();return}
  const pc=e.target.closest('[data-pclr]');if(pc){e.preventDefault();S.resp='';S.sup='';render();return}
  const pr=e.target.closest('[data-pres]');if(pr){S.resp=S.resp===pr.dataset.pres?'':pr.dataset.pres;S.fL=S.fR=null;render();return}
@@ -356,6 +373,7 @@ document.addEventListener('click',e=>{
 $('dX').onclick=closeD;$('scrim').onclick=closeD;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD()});
 $('dIni').onchange=$('dFim').onchange=()=>{S.ini=$('dIni').value;S.fim=$('dFim').value||S.ini;if(S.ini)loadData()};
 $('resp').onchange=e=>{S.resp=e.target.value;S.fL=S.fR=null;render()};
+document.addEventListener('change',e=>{if(e.target.dataset.zero){S.showZero=e.target.checked;render()}});
 $('sup').onchange=e=>{S.sup=e.target.value;S.resp='';S.fL=S.fR=null;render()};
 
 /* ---------- início ---------- */
@@ -373,6 +391,7 @@ async function start(){
  if(S.mode==='proprias'&&!S.me.nome_programacao)return block('<div><b>Seu cadastro não tem "Nome na programação".</b><br>Sem ele não dá para saber quais são as suas cargas. Peça para preencher em Cadastros.</div>');
  $('who').textContent=S.me.nome+(S.mode==='livre'?' · visão geral':' · minhas cargas e equipe');
  try{(await q(sb.from('responsaveis').select('*'))).forEach(x=>S.resps[x.chave]=x)}catch(e){}
+ try{S.allNames=(await q(sb.rpc('responsaveis_em_uso'))).map(x=>({k:rkey(x.nome),nome:String(x.nome).trim()})).filter(x=>x.k)}catch(e){}
  try{(await q(sb.from('usuarios').select('nome,nome_programacao'))).forEach(u=>{if(u.nome_programacao)S.unames[rkey(u.nome_programacao)]=u.nome_programacao})}catch(e){}
  document.querySelector('#per button[data-p="hoje"]').classList.add('on');
  $('main').style.display='';await loadData();loadInv();setInterval(loadInv,120000);
