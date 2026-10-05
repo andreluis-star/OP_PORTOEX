@@ -99,6 +99,12 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .vehs .vt button{font-family:var(--font);font-size:11.5px;text-transform:none;letter-spacing:0;border:1px solid var(--line);background:#fff;border-radius:5px;padding:2px 7px;color:var(--ink)}
 .minibar{height:4px;border-radius:2px;background:#E6EAED;overflow:hidden;grid-column:2/4}.minibar i{display:block;height:100%}
 .pin.ring{outline:3px solid var(--navy);outline-offset:1px}
+.route{margin:8px 0;padding:8px 10px;background:#EEF2F8;border-left:4px solid var(--navy);border-radius:6px;font-size:12.5px;color:var(--ink)}
+.route.err{border-left-color:var(--risk);background:#FBEDEB;color:var(--risk)}
+.route ol{margin:6px 0 0;padding-left:20px;max-height:150px;overflow:auto}.route li{margin:1px 0}.route li span{color:var(--muted);font-size:11.5px}
+.ropts{display:flex;gap:12px;font-size:12px;margin:4px 0 6px}.ropts label{display:flex;gap:4px;align-items:center}
+.seq{width:18px;height:18px;border-radius:50%;color:#fff;font:800 11px var(--cond);display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.sim{font-size:12.5px;margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;display:none;max-width:90vw}
 .toast.on{display:block}.toast.bad{background:var(--risk)}
 .block{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}
@@ -129,7 +135,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   </div>
   <div class="filt">
    <input type="search" id="q" placeholder="Filtrar cidade, destinatário, NF…">
-   <select id="ord" title="Ordem da lista"><option value="uf">Destino (UF › cidade)</option><option value="dist">Distância de Itajaí</option><option value="peso">Peso (maior primeiro)</option></select>
+   <select id="ord" title="Ordem da lista"><option value="uf">Destino (UF › cidade)</option><option value="dist">Distância rodoviária de Itajaí</option><option value="peso">Peso (maior primeiro)</option></select>
    <select id="mode" title="O que mostrar no mapa"><option value="pend">Só pendentes + placa ativa</option><option value="all" selected>Pendentes + todos os veículos</option><option value="veh">Só cargas em veículos</option></select>
    <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="lines" checked> linhas Portoex → destinos</label>
   </div>
@@ -248,6 +254,39 @@ function cities(){
 const dist=(a,b)=>{const R=6371,t=x=>x*Math.PI/180,dl=t(b.lat-a.lat),dn=t(b.lon-a.lon),h=Math.sin(dl/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
 const sum=(rs,f)=>rs.reduce((a,r)=>a+num(r[f]),0);
 
+/* ---------- rotas rodoviárias ---------- */
+const DIST={};let distErr=null;
+const RT={key:null,data:null,err:null,loading:false},SIM={key:null,data:null,err:null,loading:false};
+const fmtMin=m=>{m=Math.round(m||0);const h=Math.floor(m/60);return h?`${h}h${String(m%60).padStart(2,'0')}`:`${m} min`};
+async function fnRotas(body){const{data:{session}}=await sb.auth.getSession();
+ const r=await fetch(SUPA_URL+'/functions/v1/rotas',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:SUPA_KEY},body:JSON.stringify(body)});
+ const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.erro||('serviço de rotas indisponível (HTTP '+r.status+')'));return j}
+async function ensureDist(){
+ const need=new Map();for(const r of Object.values(S.rows)){const g=geocode(r.cidade||'');if(g&&!DIST[g.cod])need.set(g.cod,g)}
+ if(!need.size)return;
+ try{const cods=[...need.keys()];for(let i=0;i<cods.length;i+=300){const d=await q(sb.from('distancias_base').select('cod_ibge,km,minutos').in('cod_ibge',cods.slice(i,i+300)));d.forEach(x=>{DIST[x.cod_ibge]={km:+x.km,min:+x.minutos};need.delete(x.cod_ibge)})}
+  if(need.size){const j=await fnRotas({acao:'distancias',destinos:[...need.values()].map(g=>({cod:g.cod,lat:g.lat,lon:g.lon}))});Object.assign(DIST,j.distancias)}distErr=null}
+ catch(e){distErr=e.message}
+ renderAll(false)}
+const kmOf=c=>DIST[c.m.cod]?.km;
+function stopsOf(laneId,extra=[]){const m=new Map();for(const r of Object.values(S.rows))if(r.faixa_id===laneId){const g=geocode(r.cidade||'');if(g)m.set(g.cod,g)}
+ for(const id of extra){const g=geocode(S.rows[id]?.cidade||'');if(g)m.set(g.cod,g)}return[...m.values()]}
+const optOt=()=>$('rOtim')?.checked!==false,optRet=()=>!!$('rRet')?.checked;
+async function ensureRoute(){
+ const l=laneById(S.active);if(!l){RT.key=null;RT.data=null;return}
+ const st=stopsOf(l.id),key=l.id+'|'+st.map(g=>g.cod).sort().join(',')+'|'+optOt()+optRet();
+ if(key===RT.key)return;RT.key=key;RT.data=null;RT.err=null;
+ if(!st.length){renderActive();renderMap(false);return}
+ RT.loading=true;renderActive();
+ try{const j=await fnRotas({acao:'rota',paradas:st.map(g=>({cod:g.cod,lat:g.lat,lon:g.lon})),otimizar:optOt(),retorno:optRet()});if(RT.key===key)RT.data=j}
+ catch(e){if(RT.key===key)RT.err=e.message}
+ RT.loading=false;if(RT.key===key){renderActive();renderMap(false)}}
+async function simulate(){
+ const l=laneById(S.active);if(!l)return;const st=stopsOf(l.id,[...S.sel]);const key=st.map(g=>g.cod).sort().join(',')+optOt()+optRet();
+ SIM.key=key;SIM.data=null;SIM.err=null;SIM.loading=true;renderSel();
+ try{SIM.data=await fnRotas({acao:'rota',paradas:st.map(g=>({cod:g.cod,lat:g.lat,lon:g.lon})),otimizar:optOt(),retorno:optRet()})}catch(e){SIM.err=e.message}
+ SIM.loading=false;renderSel();renderMap(false)}
+
 /* ---------- mapa ---------- */
 let map,layer,lasso=null,lassoOn=false,origin;
 function initMap(){
@@ -284,11 +323,14 @@ function renderMap(fit){
   const ic=L.divIcon({className:'',html:`<div class="pin ${selN?'sel':''} ${c.act.length?'ring':''}" style="width:${size}px;height:${size}px;background:${grad};color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)">${label}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
   const mk=L.marker([c.m.lat,c.m.lon],{icon:ic,riseOnHover:true}).addTo(layer);
   const oth=Object.entries([...c.act,...c.oth].reduce((m,r)=>{m[r.faixa_id]=(m[r.faixa_id]||[]);m[r.faixa_id].push(r);return m},{})).map(([id,rs])=>`<span style="color:${colorOf(id)}">●</span> ${esc(laneName(laneById(id)))}: ${rs.length} NF · ${kg(sum(rs,'peso'))}`);
-  mk.bindTooltip(`<div class="tipc"><b>${esc(c.m.nome)} - ${c.m.uf}</b> · ${Math.round(dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon}))} km<br>
+  mk.bindTooltip(`<div class="tipc"><b>${esc(c.m.nome)} - ${c.m.uf}</b> · ${kmOf(c)!=null?`<b>${Math.round(kmOf(c))} km</b> rodoviários · ${fmtMin(DIST[c.m.cod].min)}`:`~${Math.round(dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon}))} km em linha reta`}<br>
    ${c.free.length?`Sem veículo: <b>${c.free.length}</b> NF · ${kg(sum(c.free,'peso'))} · ${sum(c.free,'vol')} vol${selN?` · <span style="color:#14A44D">${selN} selecionada(s)</span>`:''}<br>`:''}
    ${oth.length?oth.join('<br>'):''}</div>`,{direction:'top',offset:[0,-size/2]});
   mk.on('click',()=>{if(lassoOn)return;toggleCity(c)})}
- if($('lines').checked){for(const c of list){const ids=new Set([...c.act,...c.oth].map(r=>r.faixa_id));ids.forEach(id=>L.polyline([[ORIGEM.lat,ORIGEM.lon],[c.m.lat,c.m.lon]],{color:colorOf(id),weight:id===S.active?4:2,opacity:id===S.active?.9:.45,interactive:false}).addTo(layer))}}
+ if($('lines').checked){for(const c of list){const ids=new Set([...c.act,...c.oth].map(r=>r.faixa_id));ids.forEach(id=>{if(id===S.active&&RT.data)return;L.polyline([[ORIGEM.lat,ORIGEM.lon],[c.m.lat,c.m.lon]],{color:colorOf(id),weight:id===S.active?3:1.5,opacity:id===S.active?.7:.35,dashArray:'4 6',interactive:false}).addTo(layer)})}}
+ if(RT.data&&RT.data.geometria?.length){L.polyline(RT.data.geometria,{color:'#fff',weight:8,opacity:.9,interactive:false}).addTo(layer);L.polyline(RT.data.geometria,{color:colorOf(S.active),weight:5,opacity:.95,interactive:false}).addTo(layer);
+  RT.data.ordem.forEach((cod,i)=>{const m=MUN.find(x=>x.cod===+cod);if(m)L.marker([m.lat,m.lon],{icon:L.divIcon({className:'',html:`<div class="seq" style="background:${colorOf(S.active)}">${i+1}</div>`,iconSize:[18,18],iconAnchor:[-6,22]}),interactive:false,zIndexOffset:900}).addTo(layer)})}
+ if(SIM.data&&SIM.data.geometria?.length&&S.sel.size)L.polyline(SIM.data.geometria,{color:'#14A44D',weight:4,opacity:.9,dashArray:'8 6',interactive:false}).addTo(layer);
  if(fit){const b=list.map(c=>[c.m.lat,c.m.lon]);b.push([ORIGEM.lat,ORIGEM.lon]);if(b.length>1)map.fitBounds(b,{padding:[40,40],maxZoom:9})}
 }
 function toggleCity(c){const ids=c.free.map(r=>r.id);if(!ids.length)return toast('Esta cidade não tem cargas sem veículo');const all=ids.every(i=>S.sel.has(i));ids.forEach(i=>all?S.sel.delete(i):S.sel.add(i));renderAll(false)}
@@ -298,11 +340,11 @@ function renderList(){
  const {list,unk}=cities(),ord=$('ord').value,act=laneById(S.active);
  const free=list.filter(c=>c.free.length),actC=list.filter(c=>c.act.length),oth=list.filter(c=>c.oth.length);
  if($('mode').value==='veh')free.length=0;
- const sortF=a=>{const d=c=>dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon});return ord==='dist'?a.sort((x,y)=>d(x)-d(y)):ord==='peso'?a.sort((x,y)=>sum(y.free.concat(y.act),'peso')-sum(x.free.concat(x.act),'peso')):a.sort((x,y)=>x.m.uf.localeCompare(y.m.uf)||x.m.nome.localeCompare(y.m.nome))};
+ const sortF=a=>{const d=c=>kmOf(c)??dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon})*1.3;return ord==='dist'?a.sort((x,y)=>d(x)-d(y)):ord==='peso'?a.sort((x,y)=>sum(y.free.concat(y.act),'peso')-sum(x.free.concat(x.act),'peso')):a.sort((x,y)=>x.m.uf.localeCompare(y.m.uf)||x.m.nome.localeCompare(y.m.nome))};
  const crow=(r,withLane)=>`<div class="cr"><input type="checkbox" data-c="${r.id}" ${S.sel.has(r.id)?'checked':''} ${isFree(r)?'':'disabled'}><span class="d" title="${esc(r.dest)}">${r.prioridade?`<span class="pb ${r.prioridade}">${PRIO[r.prioridade]}</span>`:''}${esc(r.dest||r.col||'—')}</span><span class="m">${r.nf?'NF '+esc(String(r.nf).slice(0,14))+' · ':''}${kg(num(r.peso))} · ${num(r.vol)} vol</span>${withLane?`<span class="ln">${esc(laneName(laneById(r.faixa_id)))}${r.faixa_id===S.active&&decide('mover',r)!=='deny'?` · <a href="#" data-rm="${r.id}">tirar da placa</a>`:''}</span>`:''}</div>`;
  const block=(arr,kind,pre='')=>{let h='',uf=null;for(const c of sortF(arr)){if(ord==='uf'&&c.m.uf!==uf){uf=c.m.uf;h+=`<div class="uf">${uf}</div>`}
    const rs=c[kind],k=pre+kind+c.m.cod,sel=kind==='free'&&rs.every(r=>S.sel.has(r.id));
-   h+=`<div class="city ${S.open.has(k)?'open':''} ${sel?'sel':''}"><div class="ch" data-city="${k}"><span>${S.open.has(k)?'▾':'▸'}</span><span class="nm">${esc(c.m.nome)}${ord!=='uf'?' - '+c.m.uf:''}</span><span class="st">${rs.length} NF · ${kg(sum(rs,'peso'))}</span>${kind==='free'?`<input type="checkbox" data-cityall="${c.m.cod}" ${sel?'checked':''} title="Selecionar a cidade toda">`:''}</div>
+   h+=`<div class="city ${S.open.has(k)?'open':''} ${sel?'sel':''}"><div class="ch" data-city="${k}"><span>${S.open.has(k)?'▾':'▸'}</span><span class="nm">${esc(c.m.nome)}${ord!=='uf'?' - '+c.m.uf:''}</span><span class="st">${kmOf(c)!=null?Math.round(kmOf(c))+' km · ':''}${rs.length} NF · ${kg(sum(rs,'peso'))}</span>${kind==='free'?`<input type="checkbox" data-cityall="${c.m.cod}" ${sel?'checked':''} title="Selecionar a cidade toda">`:''}</div>
     <div class="cg">${rs.map(r=>crow(r,kind!=='free')).join('')}</div></div>`}return h};
  let h=`<div class="sec">Sem veículo · ${free.reduce((a,c)=>a+c.free.length,0)} NF</div>`+(free.length?block(free,'free'):'<div class="empty">Nenhuma carga sem veículo neste dia (ou no filtro).</div>');
  if(act)h+=`<div class="sec">Na placa ativa · ${actC.reduce((a,c)=>a+c.act.length,0)} NF</div>`+(actC.length?block(actC,'act'):'<div class="empty">Nenhuma carga ainda. Selecione destinos e clique em "Atribuir".</div>');
@@ -313,15 +355,24 @@ function renderList(){
    Object.entries(groups).map(([k,rs])=>`<div class="city"><div class="ch" style="cursor:default"><span class="nm" title="${esc(k)}">${esc(k)}</span><span class="st">${rs.length} NF</span></div><div style="padding:0 14px 8px 34px;display:flex;gap:6px"><input data-alias="${esc(k)}" placeholder="Cidade/UF correta" style="flex:1;border:1px solid var(--line);border-radius:5px;padding:4px 6px"></div></div>`).join('')}
  $('list').innerHTML=h;
 }
+function routeHTML(l){
+ const opts=`<div class="ropts"><label><input type="checkbox" id="rOtim" ${optOt()?'checked':''}> otimizar ordem</label><label><input type="checkbox" id="rRet" ${optRet()?'checked':''}> incluir retorno à base</label></div>`;
+ if(RT.loading)return `<div class="route">Calculando rota rodoviária…</div>`+opts;
+ if(RT.err)return `<div class="route err">Rota rodoviária indisponível: ${esc(RT.err)}</div>`+opts;
+ const d=RT.data;if(!d||!d.ordem?.length)return opts;
+ const nomes=d.ordem.map(c=>MUN.find(m=>m.cod===+c));
+ return `<div class="route"><b>${Math.round(d.km).toLocaleString('pt-BR')} km</b> rodoviários · ${fmtMin(d.min)} de direção (caminhão)${d.retorno?' · com retorno':''}${d.aviso?`<div class="meta">${esc(d.aviso)}</div>`:''}
+  <ol>${nomes.map((m,i)=>`<li>${m?esc(m.nome)+' - '+m.uf:'?'} <span>${d.pernas[i]?'+'+Math.round(d.pernas[i].km)+' km':''}</span></li>`).join('')}${d.retorno&&d.pernas[nomes.length]?`<li>Retorno a Itajaí <span>+${Math.round(d.pernas[nomes.length].km)} km</span></li>`:''}</ol></div>`+opts}
 function renderActive(){
  const vs=S.lanes.filter(l=>l.tipo==='veiculo').sort((a,b)=>depart(a).localeCompare(depart(b)));
  $('active').innerHTML=`<option value="">— escolha a placa ativa —</option>`+vs.map(l=>`<option value="${l.id}" ${l.id===S.active?'selected':''}>${esc(laneName(l))}</option>`).join('');
  const l=laneById(S.active),selRows=[...S.sel].map(i=>S.rows[i]).filter(Boolean);
  if(!l){$('cap').innerHTML='Escolha a placa que você está montando. As cargas selecionadas serão atribuídas a ela.';return}
+ setTimeout(()=>{const a=$('rOtim'),b=$('rRet');if(a)a.onchange=()=>{RT.key=null;ensureRoute()};if(b)b.onchange=()=>{RT.key=null;ensureRoute()}},0);
  const cur=Object.values(S.rows).filter(r=>r.faixa_id===l.id),cw=sum(cur,'peso'),sw=sum(selRows,'peso'),cap=capKg(l),over=cap&&cw+sw>cap,fo=frotaOf(l);
  $('cap').innerHTML=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${extractPlates(l.placa).map(p=>`<span class="ptag ${FC[fo]}">${p}</span>`).join('')}<span>${esc(FN[fo])} · ${esc((l.veiculo||'').split(' - ')[0]||'tipo não informado')}</span></div>
   <div class="bar ${over?'over':''}"><i class="b1" style="width:${cap?Math.min(100,cw/cap*100):0}%"></i><i class="b2" style="width:${cap?Math.max(0,Math.min(100-cw/cap*100,sw/cap*100)):0}%"></i></div>
-  ${kg(cw)} programados${sw?` + <b style="color:var(--sel)">${kg(sw)} selecionados</b>`:''} de ${cap?kg(cap):'capacidade não informada'}${cap?` · ${Math.round((cw+sw)/cap*100)}%`:''} · ${cur.length} NF · ${sum(cur,'vol')} vol`;
+  ${routeHTML(l)}${kg(cw)} programados${sw?` + <b style="color:var(--sel)">${kg(sw)} selecionados</b>`:''} de ${cap?kg(cap):'capacidade não informada'}${cap?` · ${Math.round((cw+sw)/cap*100)}%`:''} · ${cur.length} NF · ${sum(cur,'vol')} vol`;
 }
 function renderSel(){
  const rs=[...S.sel].map(i=>S.rows[i]).filter(Boolean),l=laneById(S.active);
@@ -330,15 +381,16 @@ function renderSel(){
  const den=rs.filter(r=>decide('mover',r)==='deny').length,apr=rs.filter(r=>decide('mover',r)==='approve').length;
  $('selbox').innerHTML=`<h3>Seleção · ${rs.length} NF</h3><div class="k"><b>${kg(sw)}</b> · <b>${sum(rs,'vol')}</b> vol · <b>${brl(sum(rs,'valor'))}</b> · ${cs.size} cidade(s)</div>
   ${l&&cap&&cw+sw>cap?`<div class="warn">Passa da capacidade em ${kg(cw+sw-cap)}.</div>`:''}${den?`<div class="warn">${den} carga(s) você não pode mover.</div>`:''}${apr?`<div class="warn" style="color:#B8650F">${apr} carga(s) irão para aprovação.</div>`:''}
+  ${l?`<div class="sim">${SIM.loading?'Simulando rota…':SIM.err?`<span class="warn">${esc(SIM.err)}</span>`:SIM.data?`Com a seleção: <b>${Math.round(SIM.data.km).toLocaleString('pt-BR')} km</b> · ${fmtMin(SIM.data.min)}${RT.data?` (<b>${SIM.data.km-RT.data.km>=0?'+':''}${Math.round(SIM.data.km-RT.data.km)} km</b> em relação à rota atual)`:''}`:''} <button class="tbtn" id="sSim" style="padding:3px 9px">Simular rota com a seleção</button></div>`:''}
   <div class="acts"><button class="tbtn" id="sClear">Limpar</button><button class="tbtn pri" id="sGo" ${l?'':'disabled'}>${l?'Atribuir à placa ativa':'Escolha a placa ativa'}</button></div>`;
- $('sClear').onclick=()=>{S.sel.clear();renderAll(false)};$('sGo').onclick=assign;
+ $('sClear').onclick=()=>{S.sel.clear();SIM.data=null;renderAll(false)};$('sGo').onclick=assign;const ss=$('sSim');if(ss)ss.onclick=simulate;
 }
 function renderVehs(){
  const vs=vehicles();if(!vs.length){$('vehs').innerHTML='';return}
  $('vehs').innerHTML=`<div class="vt">Veículos do dia · ${vs.length}<span><button id="vAll">mostrar todos</button> <button id="vNone">ocultar todos</button></span></div>`+vs.map(v=>{const rs=Object.values(S.rows).filter(r=>r.faixa_id===v.id),w=sum(rs,'peso'),cap=capKg(v),pct=cap?Math.round(w/cap*100):null,col=colorOf(v.id);
   return `<div class="vh ${v.id===S.active?'act':''} ${S.hidden.has(v.id)?'off':''}" data-veh="${v.id}" title="Clique para tornar a placa ativa"><span class="dot" style="background:${col}"></span><span class="vn">${esc(laneName(v))}</span><span class="vs">${rs.length} NF · ${kg(w)}${pct!=null?' · '+pct+'%':''}</span><button class="eye" data-eye="${v.id}" title="${S.hidden.has(v.id)?'Mostrar no mapa':'Ocultar do mapa'}">${S.hidden.has(v.id)?'🙈':'👁'}</button>${cap?`<div class="minibar"><i style="width:${Math.min(100,pct)}%;background:${pct>100?'var(--risk)':col}"></i></div>`:''}</div>`}).join('');
  $('vAll').onclick=()=>{S.hidden.clear();saveHid();renderAll(false)};$('vNone').onclick=()=>{vs.forEach(v=>v.id!==S.active&&S.hidden.add(v.id));saveHid();renderAll(false)}}
-function renderAll(fit){renderActive();renderVehs();renderList();renderSel();renderMap(fit)}
+function renderAll(fit){if(!S.sel.size)SIM.data=null;renderActive();renderVehs();renderList();renderSel();renderMap(fit);ensureRoute()}
 
 /* ---------- ações ---------- */
 async function moveTo(ids,toId,why){
@@ -372,7 +424,7 @@ document.addEventListener('keydown',e=>{
 $('btnLasso').onclick=()=>setLasso(!lassoOn);$('btnClear').onclick=()=>{S.sel.clear();renderAll(false)};$('btnFit').onclick=()=>renderMap(true);
 $('q').oninput=()=>renderAll(false);$('ord').onchange=renderList;$('mode').onchange=()=>renderAll(false);$('lines').onchange=()=>renderMap(false);
 $('active').onchange=e=>{S.active=e.target.value||null;try{localStorage.setItem(ACTKEY,S.active||'')}catch(x){}renderAll(false)};
-$('day').onchange=async e=>{S.day=e.target.value;S.sel.clear();try{localStorage.setItem(DAYKEY,S.day)}catch(x){}await loadDay();renderAll(true)};
+$('day').onchange=async e=>{S.day=e.target.value;S.sel.clear();try{localStorage.setItem(DAYKEY,S.day)}catch(x){}await loadDay();renderAll(true);ensureDist()};
 // novo veículo
 $('btnNewVeh').onclick=()=>{if(decide('veiculo')!=='allow')return toast('Seu perfil não cria veículos',true);
  $('dlPl').innerHTML=S.placas.filter(p=>p.ativo).map(p=>`<option value="${p.placa}">${FN[p.tipo]}</option>`).join('');
@@ -398,11 +450,11 @@ async function start(){
  $('who').textContent=S.me.nome;await loadMun();
  S.days=days.map(d=>d.data);const saved=localStorage.getItem(DAYKEY);S.day=S.days.includes(saved)?saved:S.days[0];
  $('day').innerHTML=S.days.map(d=>`<option value="${d}" ${d===S.day?'selected':''}>${dayLabel(d)}/${d.slice(0,4)}</option>`).join('');
- $('wrap').style.display='';initMap();await loadDay();renderAll(true);
+ $('wrap').style.display='';initMap();await loadDay();renderAll(true);ensureDist();
  sb.channel('roteirizacao').on('postgres_changes',{event:'*',schema:'public',table:'cargas'},()=>sched()).on('postgres_changes',{event:'*',schema:'public',table:'faixas'},()=>sched())
   .subscribe(s=>$('live').classList.toggle('on',s==='SUBSCRIBED'));
 }
-function sched(){clearTimeout(rT);rT=setTimeout(async()=>{await loadDay();renderAll(false)},500)}
+function sched(){clearTimeout(rT);rT=setTimeout(async()=>{await loadDay();renderAll(false);ensureDist()},500)}
 start().catch(e=>{$('blocked').style.display='grid';$('blocked').innerHTML='<div><b>Erro ao carregar</b><br>'+esc(e.message||e)+'</div>'});
 })();
 </script>
