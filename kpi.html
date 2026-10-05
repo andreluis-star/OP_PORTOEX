@@ -116,6 +116,9 @@ main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
 .pit .a{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pit .m{grid-column:1;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pit .t{grid-row:1/3;grid-column:2;display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:260px}
 .pcol .m{color:var(--muted);font-size:12px}
+.fbtn{border:1px solid var(--line);background:#fff;border-radius:5px;font-size:11px;padding:1px 7px;margin-left:6px;color:var(--navy);font-weight:600}
+.pr.sup{cursor:pointer}.pr.sup .exp{display:inline-grid;place-items:center}
+.pr.sub{background:#fff}
 @media (max-width:1100px){.cols{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -171,7 +174,7 @@ const firstWords=n=>{const w=String(n||'').replace(/^redespacho\s+/i,'').trim().
 const ckey=r=>{const nf=nfList(r.nf).join('-'),d=norm(firstWords(r.dest));return nf?'nf:'+nf+'|'+d:(d?'cd:'+norm(r.col).slice(0,40)+'|'+d:null)};
 
 const rkey=s=>norm(s);
-const S={allNames:[],showZero:true,openP:new Set(),unames:{},sup:'',resps:{},grp:'pessoa',me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
+const S={openS:new Set(),allNames:[],showZero:true,openP:new Set(),unames:{},sup:'',resps:{},grp:'pessoa',me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
 const STC={'OK':'#1F8A4C','Em rota':'#2F78C4','Programado':'#7FA6D9','Em definição':'#A8B3BD','Ocorrência':'#C27612','Reprogramado':'#6A4BA0','Não realizado':'#C0392B','Cancelado':'#333'};
 const BRC={entregue:['Entregue','#1F8A4C'],parcial:['Parcial','#C27612'],nao_entregue:['Não entregue','#C0392B'],manifestada:['Em rota','#2F78C4'],ocorrencia:['Ocorrência','#8A6D3B'],'':['Sem baixa','#C9D1D8']};
 const FROTA={frota:['Frota','pf','#1A3A6E'],agregado:['Agregado','pa','#E8611A'],terceiro:['Terceiro','pt3','#F3A57A']};
@@ -312,9 +315,9 @@ function render(){
 }
 function stats(rs){const L=rs.filter(carregada),R=rs.filter(r=>!carregada(r));return{n:rs.length,l:L.length,r:R.length,ent:L.filter(r=>r.brudam_situacao==='entregue').length,
  nao:R.filter(r=>invOf(r)?.st==='nao').length,patio:R.filter(r=>invOf(r)?.st==='lido').length,velhas:R.filter(r=>r._ndias>=3).length,val:rs.reduce((a,r)=>a+num(r.valor),0)}}
-function personRow(k,rs,isSup){const st=stats(rs),sel=(isSup?S.sup===k:S.resp===k);
- const op=!isSup&&S.openP.has(k);
- return `<div class="pr ${sel?'sel':''} ${isSup?'sup':''} ${st.n?'':'zero'}" data-${isSup?'psup':'pres'}="${esc(k)}"><span class="pn">${isSup?'👥 ':`<button class="exp" data-exp="${esc(k)}" title="Ver o que esta pessoa tem de envios e pendências">${op?'▾':'▸'}</button>`}${esc(isSup?('Equipe de '+nomeDe(k)):nomeDe(k))}${!isSup&&supOf(k)?`<small>sup. ${esc(nomeDe(supOf(k)))}</small>`:''}</span>
+function personRow(k,rs,isSup){const st=stats(rs),sel=!!k&&(isSup?S.sup===k:S.resp===k);
+ const op=!isSup&&S.openP.has(k),os=isSup&&S.openS.has(k);
+ return `<div class="pr ${sel?'sel':''} ${isSup?'sup':''} ${st.n?'':'zero'}" data-${isSup?'tsup':'pres'}="${esc(k)}"><span class="pn">${isSup?`<span class="exp">${os?'▾':'▸'}</span>👥 `:`<button class="exp" data-exp="${esc(k)}" title="Ver o que esta pessoa tem de envios e pendências">${op?'▾':'▸'}</button>`}${esc(isSup?(k?'Equipe de '+nomeDe(k):'Sem supervisor definido'):nomeDe(k))}${isSup?` <small style="display:inline;font-weight:400">· ${new Set(rs.map(r=>rkey(r.resp))).size} pessoa(s)</small> <button class="fbtn" data-psup="${esc(k)}" title="Filtrar o painel por esta equipe">${S.sup===k&&k?'✓ filtrando':'🔍 filtrar painel'}</button>`:''}${!isSup&&supOf(k)?`<small>sup. ${esc(nomeDe(supOf(k)))}</small>`:''}</span>
   <span class="pnum">${n0(st.n)}</span>
   <span class="pbar" title="${st.l} carregadas · ${st.r} indefinidas"><i style="width:${pct(st.l,st.n)}%;background:var(--navy)"></i><i style="width:${pct(st.r,st.n)}%;background:var(--orange)"></i></span>
   <span class="pnum" style="color:var(--navy)">${pct(st.l,st.n)}%</span><span class="pnum" style="color:var(--orange)">${n0(st.r)}</span>
@@ -327,12 +330,12 @@ function peopleHTML(){const rs=base(),g=groupBy(rs,r=>rkey(r.resp)||'');
  const head=`<div class="ph" style="border-top:5px solid var(--navy)"><h2 style="color:var(--navy)">Por ${S.grp==='pessoa'?'responsável':'supervisor'}</h2>
   <div class="seg" style="margin-left:12px"><button data-grp="pessoa" class="${S.grp==='pessoa'?'on':''}">Pessoas</button><button data-grp="sup" class="${S.grp==='sup'?'on':''}">Supervisores</button></div>
   <label style="margin-left:14px;font-size:12px;display:flex;gap:5px;align-items:center"><input type="checkbox" data-zero="1" ${S.showZero?'checked':''}> mostrar quem não tem cargas no período</label>
-  <span style="margin-left:auto;font-size:12px;color:var(--muted)">▸ abre envios e pendências da pessoa · clique na linha para filtrar o painel${S.resp||S.sup?' · <a href="#" data-pclr="1">ver todos</a>':''}</span></div>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted)">${S.grp==='pessoa'?'▸ abre envios e pendências da pessoa · clique na linha para filtrar o painel':'clique na equipe para abrir as pessoas · 🔍 filtra o painel pela equipe'}${S.resp||S.sup?' · <a href="#" data-pclr="1">ver todos</a>':''}</span></div>
   <div class="pr ph2"><span class="pn">${S.grp==='pessoa'?'Responsável':'Supervisor / equipe'}</span><span class="pnum">NFs</span><span>envios × pendências</span><span class="pnum">% enviado</span><span class="pnum">pendências</span><span class="pnum">entregues</span><span class="pnum" title="Indefinidas não localizadas no inventário">não no pátio</span><span class="pnum" title="Indefinidas há 3 dias ou mais">3+ dias</span><span class="pnum">valor</span></div>`;
  let body='';
  if(S.grp==='pessoa'){if(S.showZero){const ks=new Set([...S.allNames.map(x=>x.k),...Object.keys(S.resps)]);ks.forEach(k=>{if(!g.has(k)&&(S.mode==='livre'||allowed({resp:k}))&&(!S.sup||supOf(k)===S.sup||k===S.sup))g.set(k,[])})}
   body=[...g].sort((a,b)=>b[1].length-a[1].length||nomeDe(a[0]).localeCompare(nomeDe(b[0]))).map(([k,v])=>personRow(k,v,false)).join('')}
- else{const gs=groupBy(rs,r=>supOf(rkey(r.resp))||'');body=[...gs].sort((a,b)=>b[1].length-a[1].length).map(([sk,v])=>(sk?personRow(sk,v,true):`<div class="pr sup"><span class="pn">Sem supervisor definido</span></div>`)+[...groupBy(v,r=>rkey(r.resp)||'')].sort((a,b)=>b[1].length-a[1].length).map(([k,vv])=>personRow(k,vv,false).replace('class="pr','class="pr sub')).join('')).join('')}
+ else{const gs=groupBy(rs,r=>supOf(rkey(r.resp))||'');body=[...gs].sort((a,b)=>(a[0]===''?1:0)-(b[0]===''?1:0)||b[1].length-a[1].length).map(([sk,v])=>personRow(sk,v,true)+(S.openS.has(sk)?[...groupBy(v,r=>rkey(r.resp)||'')].sort((a,b)=>b[1].length-a[1].length).map(([k,vv])=>personRow(k,vv,false).replace('class="pr','class="pr sub')).join(''):'')).join('')}
  return head+`<div class="plist">${body||'<div class="empty">Sem cargas no período.</div>'}</div>`}
 function item(r,extra){return `<div class="it" data-id="${r.id}"><div class="a">${esc(r.dest||r.col||'—')}</div><div class="c">${extra}</div>
  <div class="b">${r.nf?'NF '+esc(String(r.nf).slice(0,24))+' · ':''}${esc(r.cidade||'')} · ${n0(num(r.vol))} vol · ${kg(num(r.peso))}${r.resp?' · '+esc(r.resp):''} ${servTag(r.serv)}</div></div>`}
@@ -366,7 +369,8 @@ document.addEventListener('click',e=>{
  const gp=e.target.closest('[data-grp]');if(gp){S.grp=gp.dataset.grp;render();return}
  const pc=e.target.closest('[data-pclr]');if(pc){e.preventDefault();S.resp='';S.sup='';render();return}
  const pr=e.target.closest('[data-pres]');if(pr){S.resp=S.resp===pr.dataset.pres?'':pr.dataset.pres;S.fL=S.fR=null;render();return}
- const ps=e.target.closest('[data-psup]');if(ps){S.sup=S.sup===ps.dataset.psup?'':ps.dataset.psup;S.resp='';S.fL=S.fR=null;render();return}
+ const ps=e.target.closest('[data-psup]');if(ps){const k=ps.dataset.psup;if(!k)return;S.sup=S.sup===k?'':k;S.resp='';S.fL=S.fR=null;render();return}
+ const ts=e.target.closest('[data-tsup]');if(ts){const k=ts.dataset.tsup;S.openS.has(k)?S.openS.delete(k):S.openS.add(k);render();return}
  const c=e.target.closest('[data-clr]');if(c){c.dataset.clr==='L'?S.fL=null:S.fR=null;render();return}
  const it=e.target.closest('.it');if(it){openItem(it.dataset.id);return}
  const p=e.target.closest('#per button');if(p){S.per=p.dataset.p;document.querySelectorAll('#per button').forEach(b=>b.classList.toggle('on',b===p));$('custom').style.display=S.per==='custom'?'inline-flex':'none';if(S.per!=='custom')loadData()}});
