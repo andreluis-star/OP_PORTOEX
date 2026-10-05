@@ -426,6 +426,7 @@ select.prio:disabled{opacity:1;cursor:not-allowed}
     <button class="tbtn" id="btnOpenAll">Expandir todos</button>
     <label>Colunas <select id="fView"><option value="c">Compacta</option><option value="f">Completa (como a planilha)</option></select></label>
     <button class="tbtn" id="btnCloseAll" style="margin-left:auto">Resumir todos</button>
+    <a class="tbtn hide" id="btnMapa" href="mapa.html" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">🗺️ Roteirização</a>
     <button class="tbtn" id="btnBrudam">Coletas Brudam</button>
     <button class="tbtn" id="btnImport">Importar planilha</button>
     <button class="tbtn" id="btnBackup">Backup</button>
@@ -459,8 +460,8 @@ const SUPA_KEY='sb_publishable_0iJyFXb_I-YrdY3dsGALHA_OVoEv9cw';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
 const LKEY='px-programacao-ui-v1';
 
-const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros',importar:'importar planilhas',backup:'backup',prioridade:'prioridade de carregamento'};
-const NOROW=new Set(['veiculo','admin','importar','backup']);const SIMPLE=new Set(['admin','importar','backup']);
+const ACTIONS_CURTO={mover:'mover cargas',criar:'inserir cargas',excluir:'excluir cargas',horarios:'horários',pesovol:'peso/volume',valor:'valor',dados:'dados da carga',docs:'documentos',status:'status',obs:'observação',resp:'responsável',veiculo:'veículos',admin:'cadastros',importar:'importar planilhas',backup:'backup',prioridade:'prioridade de carregamento',roteirizar:'roteirização (mapa)'};
+const NOROW=new Set(['veiculo','admin','importar','backup','roteirizar']);const SIMPLE=new Set(['admin','importar','backup','roteirizar']);
 const FIELD_ACT={hprog:'horarios',cheg:'horarios',hfim:'horarios',peso:'pesovol',vol:'pesovol',cbm:'pesovol',valor:'valor',
  col:'dados',dest:'dados',cidade:'dados',endent:'dados',serv:'dados',pag:'dados',cot:'dados',nf:'docs',oc:'docs',md:'docs',gr:'docs',end_ref:'docs',status:'status',obs:'obs',resp:'resp',prioridade:'prioridade'};
 const MODES=[['livre','Livre'],['proprias','Só nas próprias'],['proprias_aprov','Próprias livre, outras c/ aprovação'],['aprov','Sempre com aprovação'],['bloq','Bloqueado']];
@@ -505,7 +506,7 @@ function decide(action,row,u=me()){
  const apv=(S.approvers[action]||[]).length>0;
  const approve=()=>apv?{r:'approve'}:{r:'deny',why:`${curto}: precisa de aprovação, mas nenhum aprovador foi cadastrado`};
  if(mode==='livre')return{r:'allow'};
- if(mode==='bloq')return{r:'deny',why:`${pn} não pode alterar ${curto}`.replace('alterar mover','mover').replace('alterar inserir','inserir').replace('alterar excluir','excluir').replace('alterar cadastros','administrar cadastros').replace('alterar importar','importar').replace('alterar backup','gerar backup')};
+ if(mode==='bloq')return{r:'deny',why:`${pn} não pode alterar ${curto}`.replace('alterar mover','mover').replace('alterar inserir','inserir').replace('alterar excluir','excluir').replace('alterar cadastros','administrar cadastros').replace('alterar importar','importar').replace('alterar backup','gerar backup').replace('alterar roteirização (mapa)','usar a roteirização')};
  if(mode==='aprov')return approve();
  if(mode==='proprias')return own?{r:'allow'}:{r:'deny',why:`${pn} só altera ${curto} nas próprias cargas${row&&row.resp?' (esta é de '+row.resp+')':''}`};
  if(mode==='proprias_aprov')return own?{r:'allow'}:approve();
@@ -631,7 +632,7 @@ function renderTop(){
  $('roleNote').innerHTML=`<span class="live ${liveOn?'on':''}" title="${liveOn?'Atualização em tempo real ativa':'Conectando…'}"></span><b>${esc(me().nome)}</b> (${esc(perfil().nome)}) · ${permSummary()}`;
  $('btnAdm').classList.toggle('hide',decide('admin').r!=='allow');
  $('btnNewDay').classList.toggle('hide',decide('veiculo').r!=='allow');
- $('btnImport').classList.toggle('hide',decide('importar').r!=='allow');$('btnBackup').classList.toggle('hide',decide('backup').r!=='allow');
+ $('btnImport').classList.toggle('hide',decide('importar').r!=='allow');$('btnMapa').classList.toggle('hide',decide('roteirizar').r!=='allow');$('btnBackup').classList.toggle('hide',decide('backup').r!=='allow');
  const resp=[...new Set(Object.values(S.rows).map(r=>r.resp).filter(Boolean).map(s=>s.trim()))].filter(s=>s.length<20).sort();
  const fr=$('fResp').value;$('fResp').innerHTML='<option value="">Todos</option>'+resp.map(r=>`<option ${r===fr?'selected':''}>${esc(r)}</option>`).join('');
  const fs=$('fSt').value;$('fSt').innerHTML='<option value="">Todos</option>'+STATUS.map(r=>`<option ${r===fs?'selected':''}>${r}</option>`).join('');
