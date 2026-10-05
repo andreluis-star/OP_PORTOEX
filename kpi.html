@@ -99,6 +99,15 @@ main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
 .btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
 .block{min-height:70vh;display:grid;place-items:center;text-align:center;color:var(--muted)}.block b{color:var(--ink);font-size:16px}
 .loading{opacity:.55;pointer-events:none}
+.plist{max-height:330px;overflow:auto}
+.pr{display:grid;grid-template-columns:minmax(150px,1.4fr) 60px minmax(120px,2fr) 70px 70px 70px 80px 60px 90px;gap:10px;align-items:center;padding:6px 16px;border-bottom:1px solid var(--line2);cursor:pointer;font-size:13px}
+.pr:hover{background:#F3F6FA}.pr.sel{background:#E6ECF6;box-shadow:inset 4px 0 0 var(--navy)}
+.pr.ph2{cursor:default;background:var(--surface2);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700;position:sticky;top:0}
+.pr .pn{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pr .pn small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.pr .pnum{text-align:right;font-family:var(--cond);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.pr.ph2 .pnum{font-family:var(--font);font-size:11px}
+.pbar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line2)}.pbar i{display:block;height:100%}
+.pr.sup{background:#F4F6FA}.pr.sup .pn{color:var(--navy)}.pr.sub .pn{padding-left:18px}
 @media (max-width:1100px){.cols{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -108,6 +117,7 @@ main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
   <div><b>PORTO<em>EX</em></b><span>Indicadores · KPI</span></div></div>
  <div class="seg" id="per"><button data-p="hoje">Hoje</button><button data-p="ontem">Ontem</button><button data-p="7">7 dias</button><button data-p="30">30 dias</button><button data-p="custom">Período</button></div>
  <span id="custom" style="display:none;gap:6px;align-items:center"><input type="date" id="dIni"> até <input type="date" id="dFim"></span>
+ <select id="sup" title="Supervisor"></select>
  <select id="resp" title="Responsável"></select>
  <span class="sp"></span>
  <span class="chip" id="invChip"><span class="dot" id="invDot"></span><span id="invTxt">Inventário…</span></span>
@@ -116,6 +126,7 @@ main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
 </header>
 <main id="main" style="display:none">
  <section class="hero" id="hero"></section>
+ <section class="panel" id="people" style="margin-bottom:16px"></section>
  <section class="cols">
   <div class="panel l" id="pL"></div>
   <div class="panel r" id="pR"></div>
@@ -151,7 +162,8 @@ const extractPlates=raw=>[...new Set(normPlate(raw).match(/[A-Z]{3}[0-9][A-Z0-9]
 const firstWords=n=>{const w=String(n||'').replace(/^redespacho\s+/i,'').trim().split(/\s+/);return w.slice(0,(w[0]||'').length<=3?3:2).join(' ')};
 const ckey=r=>{const nf=nfList(r.nf).join('-'),d=norm(firstWords(r.dest));return nf?'nf:'+nf+'|'+d:(d?'cd:'+norm(r.col).slice(0,40)+'|'+d:null)};
 
-const S={me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
+const rkey=s=>norm(s);
+const S={unames:{},sup:'',resps:{},grp:'pessoa',me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
 const STC={'OK':'#1F8A4C','Em rota':'#2F78C4','Programado':'#7FA6D9','Em definição':'#A8B3BD','Ocorrência':'#C27612','Reprogramado':'#6A4BA0','Não realizado':'#C0392B','Cancelado':'#333'};
 const BRC={entregue:['Entregue','#1F8A4C'],parcial:['Parcial','#C27612'],nao_entregue:['Não entregue','#C0392B'],manifestada:['Em rota','#2F78C4'],ocorrencia:['Ocorrência','#8A6D3B'],'':['Sem baixa','#C9D1D8']};
 const FROTA={frota:['Frota','pf','#1A3A6E'],agregado:['Agregado','pa','#E8611A'],terceiro:['Terceiro','pt3','#F3A57A']};
@@ -202,7 +214,19 @@ function motivoR(r){if(r.status==='Não realizado')return'Não realizado';if(r.s
 const MOTC={'Sem veículo':'#A8B3BD','Reprogramado':'#6A4BA0','Não realizado':'#C0392B'};
 function idade(r){return r._ndias>=4?'4 dias ou mais':r._ndias===3?'3º dia':r._ndias===2?'2º dia':'1º dia'}
 const IDC={'1º dia':'#8FB3E3','2º dia':'#E8A55C','3º dia':'#E8611A','4 dias ou mais':'#C0392B'};
-function vis(){const resp=S.mode==='livre'?S.resp:norm(S.me.nome_programacao);return S.rows.filter(r=>!resp||norm(r.resp)===norm(resp))}
+function supOf(k){return S.resps[k]?.supervisor_chave||''}
+function allowed(r){if(S.mode==='livre')return true;const me=rkey(S.me.nome_programacao),k=rkey(r.resp);return k===me||supOf(k)===me}
+function base(){return S.rows.filter(r=>allowed(r)&&(!S.sup||supOf(rkey(r.resp))===S.sup||rkey(r.resp)===S.sup))}
+function vis(){return base().filter(r=>!S.resp||rkey(r.resp)===S.resp)}
+function nomeDe(k){if(!k)return'(sem responsável)';if(S.resps[k])return S.resps[k].nome;const r=S.rows.find(x=>rkey(x.resp)===k);return r?String(r.resp).trim():(S.unames[k]||k.replace(/\b\w/g,c=>c.toUpperCase()))}
+function fillSelects(){
+ const ks=new Set(S.rows.filter(allowed).map(r=>rkey(r.resp)).filter(Boolean));
+ const sups=new Set([...ks].map(supOf).filter(Boolean));if(S.mode!=='livre'&&![...sups].includes(rkey(S.me.nome_programacao))&&[...ks].some(k=>supOf(k)===rkey(S.me.nome_programacao)))sups.add(rkey(S.me.nome_programacao));
+ const cur=S.resp,cs=S.sup,lista=[...ks].filter(k=>!S.sup||supOf(k)===S.sup||k===S.sup).sort((a,b)=>nomeDe(a).localeCompare(nomeDe(b)));
+ $('sup').innerHTML='<option value="">Todos os supervisores</option>'+[...sups].sort().map(k=>`<option value="${esc(k)}" ${k===cs?'selected':''}>Equipe de ${esc(nomeDe(k))}</option>`).join('');
+ $('sup').style.display=sups.size?'':'none';
+ $('resp').innerHTML='<option value="">Todos os responsáveis</option>'+lista.map(k=>`<option value="${esc(k)}" ${k===cur?'selected':''}>${esc(nomeDe(k))}</option>`).join('');
+}
 function sums(rs){return{n:rs.length,vol:rs.reduce((a,r)=>a+num(r.vol),0),peso:rs.reduce((a,r)=>a+num(r.peso),0),val:rs.reduce((a,r)=>a+num(r.valor),0)}}
 const laneName=f=>f.tipo==='veiculo'?`${f.motorista||'sem motorista'} · ${f.placa||'sem placa'}`:(f.titulo||'Seção');
 
@@ -234,7 +258,7 @@ function fLabel(f){if(!f)return'';const d=DIMS[f.dim];let v=f.k;if(f.dim==='vei'
 
 /* ---------- render ---------- */
 function render(){
- if(!S.me)return;const all=vis(),L=all.filter(carregada),R=all.filter(r=>!carregada(r)),sA=sums(all),sL=sums(L),sR=sums(R);
+ if(!S.me)return;fillSelects();const all=vis(),L=all.filter(carregada),R=all.filter(r=>!carregada(r)),sA=sums(all),sL=sums(L),sR=sums(R);
  const ent=L.filter(r=>r.brudam_situacao==='entregue').length,invR=R.filter(r=>invOf(r)?.st==='lido').length,invN=R.filter(r=>invOf(r)?.st==='nao').length;
  const [ini,fim]=S.range;
  $('hero').innerHTML=`
@@ -244,6 +268,7 @@ function render(){
   <div class="hk ok"><div class="l">Entregues (baixa Brudam)</div><div class="v">${pct(ent,sL.n)}%</div><div class="s">${n0(ent)} de ${n0(sL.n)} carregadas</div><div class="meter" style="width:${pct(ent,sL.n)}%"></div></div>
   <div class="hk"><div class="l">Indefinidas no pátio</div><div class="v">${S.inv?pct(invR,R.length)+'%':'…'}</div><div class="s">${n0(invR)} no pátio · <b style="color:var(--risk)">${n0(invN)} não localizadas</b></div><div class="meter" style="width:${pct(invR,R.length)}%;background:var(--ok)"></div></div>`;
 
+ $('people').innerHTML=peopleHTML();
  // ---- ESQUERDA: carregadas
  const stL=[...groupBy(L,r=>r.status)].map(([k,rs])=>({k,l:k,v:rs.length,c:STC[k]||'#999'})).sort((a,b)=>b.v-a.v);
  const brL=['entregue','parcial','nao_entregue','manifestada','ocorrencia',''].map(k=>({k,l:BRC[k][0],v:L.filter(r=>(r.brudam_situacao||'')===k).length,c:BRC[k][1]}));
@@ -277,6 +302,23 @@ function render(){
  const keep=document.activeElement?.id;$('qL').oninput=e=>{S.qL=e.target.value;render();$('qL').focus();$('qL').setSelectionRange(99,99)};$('qR').oninput=e=>{S.qR=e.target.value;render();$('qR').focus();$('qR').setSelectionRange(99,99)};
  $('nota').textContent=`Cada carga conta uma vez no período (situação do dia mais recente em que aparece). "Carregadas" = em veículo e sem status Reprogramado/Não realizado. "No pátio" = NF lida no módulo de Inventário. ${S.mode!=='livre'?'Você está vendo só as cargas em que é o responsável.':''}`;
 }
+function stats(rs){const L=rs.filter(carregada),R=rs.filter(r=>!carregada(r));return{n:rs.length,l:L.length,r:R.length,ent:L.filter(r=>r.brudam_situacao==='entregue').length,
+ nao:R.filter(r=>invOf(r)?.st==='nao').length,patio:R.filter(r=>invOf(r)?.st==='lido').length,velhas:R.filter(r=>r._ndias>=3).length,val:rs.reduce((a,r)=>a+num(r.valor),0)}}
+function personRow(k,rs,isSup){const st=stats(rs),sel=(isSup?S.sup===k:S.resp===k);
+ return `<div class="pr ${sel?'sel':''} ${isSup?'sup':''}" data-${isSup?'psup':'pres'}="${esc(k)}"><span class="pn">${isSup?'👥 ':''}${esc(isSup?('Equipe de '+nomeDe(k)):nomeDe(k))}${!isSup&&supOf(k)?`<small>sup. ${esc(nomeDe(supOf(k)))}</small>`:''}</span>
+  <span class="pnum">${n0(st.n)}</span>
+  <span class="pbar" title="${st.l} carregadas · ${st.r} indefinidas"><i style="width:${pct(st.l,st.n)}%;background:var(--navy)"></i><i style="width:${pct(st.r,st.n)}%;background:var(--orange)"></i></span>
+  <span class="pnum" style="color:var(--navy)">${pct(st.l,st.n)}%</span><span class="pnum" style="color:var(--orange)">${n0(st.r)}</span>
+  <span class="pnum" style="color:var(--ok)">${st.l?pct(st.ent,st.l)+'%':'—'}</span><span class="pnum" style="color:var(--risk)">${n0(st.nao)}</span><span class="pnum" style="color:var(--plum)">${n0(st.velhas)}</span><span class="pnum">${brlK(st.val)}</span></div>`}
+function peopleHTML(){const rs=base(),g=groupBy(rs,r=>rkey(r.resp)||'');
+ const head=`<div class="ph" style="border-top:5px solid var(--navy)"><h2 style="color:var(--navy)">Por ${S.grp==='pessoa'?'responsável':'supervisor'}</h2>
+  <div class="seg" style="margin-left:12px"><button data-grp="pessoa" class="${S.grp==='pessoa'?'on':''}">Pessoas</button><button data-grp="sup" class="${S.grp==='sup'?'on':''}">Supervisores</button></div>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted)">Clique numa linha para ver o painel só daquela ${S.grp==='pessoa'?'pessoa':'equipe'}${S.resp||S.sup?' · <a href="#" data-pclr="1">ver todos</a>':''}</span></div>
+  <div class="pr ph2"><span class="pn">${S.grp==='pessoa'?'Responsável':'Supervisor / equipe'}</span><span class="pnum">NFs</span><span>carregadas × indefinidas</span><span class="pnum">% carreg.</span><span class="pnum">indefin.</span><span class="pnum">entregues</span><span class="pnum" title="Indefinidas não localizadas no inventário">não no pátio</span><span class="pnum" title="Indefinidas há 3 dias ou mais">3+ dias</span><span class="pnum">valor</span></div>`;
+ let body='';
+ if(S.grp==='pessoa'){body=[...g].sort((a,b)=>b[1].length-a[1].length).map(([k,v])=>personRow(k,v,false)).join('')}
+ else{const gs=groupBy(rs,r=>supOf(rkey(r.resp))||'');body=[...gs].sort((a,b)=>b[1].length-a[1].length).map(([sk,v])=>(sk?personRow(sk,v,true):`<div class="pr sup"><span class="pn">Sem supervisor definido</span></div>`)+[...groupBy(v,r=>rkey(r.resp)||'')].sort((a,b)=>b[1].length-a[1].length).map(([k,vv])=>personRow(k,vv,false).replace('class="pr','class="pr sub')).join('')).join('')}
+ return head+`<div class="plist">${body||'<div class="empty">Sem cargas no período.</div>'}</div>`}
 function item(r,extra){return `<div class="it" data-id="${r.id}"><div class="a">${esc(r.dest||r.col||'—')}</div><div class="c">${extra}</div>
  <div class="b">${r.nf?'NF '+esc(String(r.nf).slice(0,24))+' · ':''}${esc(r.cidade||'')} · ${n0(num(r.vol))} vol · ${kg(num(r.peso))}${r.resp?' · '+esc(r.resp):''} ${servTag(r.serv)}</div></div>`}
 function listL(rs){if(!rs.length)return'<div class="empty">Nenhuma carga.</div>';
@@ -304,12 +346,17 @@ const closeD=()=>{$('drawer').classList.remove('on');$('scrim').classList.remove
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
  const f=e.target.closest('[data-f]');if(f){const [side,dim,k]=f.dataset.f.split('|');const cur=side==='L'?S.fL:S.fR,nf=cur&&cur.dim===dim&&cur.k===k?null:{dim,k};side==='L'?S.fL=nf:S.fR=nf;render();return}
+ const gp=e.target.closest('[data-grp]');if(gp){S.grp=gp.dataset.grp;render();return}
+ const pc=e.target.closest('[data-pclr]');if(pc){e.preventDefault();S.resp='';S.sup='';render();return}
+ const pr=e.target.closest('[data-pres]');if(pr){S.resp=S.resp===pr.dataset.pres?'':pr.dataset.pres;S.fL=S.fR=null;render();return}
+ const ps=e.target.closest('[data-psup]');if(ps){S.sup=S.sup===ps.dataset.psup?'':ps.dataset.psup;S.resp='';S.fL=S.fR=null;render();return}
  const c=e.target.closest('[data-clr]');if(c){c.dataset.clr==='L'?S.fL=null:S.fR=null;render();return}
  const it=e.target.closest('.it');if(it){openItem(it.dataset.id);return}
  const p=e.target.closest('#per button');if(p){S.per=p.dataset.p;document.querySelectorAll('#per button').forEach(b=>b.classList.toggle('on',b===p));$('custom').style.display=S.per==='custom'?'inline-flex':'none';if(S.per!=='custom')loadData()}});
 $('dX').onclick=closeD;$('scrim').onclick=closeD;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD()});
 $('dIni').onchange=$('dFim').onchange=()=>{S.ini=$('dIni').value;S.fim=$('dFim').value||S.ini;if(S.ini)loadData()};
 $('resp').onchange=e=>{S.resp=e.target.value;S.fL=S.fR=null;render()};
+$('sup').onchange=e=>{S.sup=e.target.value;S.resp='';S.fL=S.fR=null;render()};
 
 /* ---------- início ---------- */
 let rT=null;
@@ -324,10 +371,9 @@ async function start(){
  const m=(S.perms[S.me.perfil_id]||{}).kpi||'bloq';S.mode=m==='livre'?'livre':m==='bloq'?'bloq':'proprias';
  if(S.mode==='bloq')return block('<div><b>Acesso ao KPI não liberado para o seu perfil.</b><br>A liberação é feita em Cadastros › Perfis e permissões ("Ver o módulo de KPI").<br><br><a class="btn" href="./">← Voltar</a></div>');
  if(S.mode==='proprias'&&!S.me.nome_programacao)return block('<div><b>Seu cadastro não tem "Nome na programação".</b><br>Sem ele não dá para saber quais são as suas cargas. Peça para preencher em Cadastros.</div>');
- $('who').textContent=S.me.nome+(S.mode==='livre'?' · visão geral':' · minhas cargas');
- if(S.mode==='livre'){const nomes=[...new Set((await q(sb.from('usuarios').select('nome_programacao').eq('ativo',true))).map(u=>u.nome_programacao).filter(Boolean))].sort();
-  $('resp').innerHTML='<option value="">Todos os responsáveis</option>'+nomes.map(n=>`<option>${esc(n)}</option>`).join('')}
- else{$('resp').innerHTML=`<option>${esc(S.me.nome_programacao)}</option>`;$('resp').disabled=true}
+ $('who').textContent=S.me.nome+(S.mode==='livre'?' · visão geral':' · minhas cargas e equipe');
+ try{(await q(sb.from('responsaveis').select('*'))).forEach(x=>S.resps[x.chave]=x)}catch(e){}
+ try{(await q(sb.from('usuarios').select('nome,nome_programacao'))).forEach(u=>{if(u.nome_programacao)S.unames[rkey(u.nome_programacao)]=u.nome_programacao})}catch(e){}
  document.querySelector('#per button[data-p="hoje"]').classList.add('on');
  $('main').style.display='';await loadData();loadInv();setInterval(loadInv,120000);
  sb.channel('kpi').on('postgres_changes',{event:'*',schema:'public',table:'cargas'},()=>{clearTimeout(rT);rT=setTimeout(loadData,3000)}).subscribe(s=>$('live').classList.toggle('on',s==='SUBSCRIBED'));
