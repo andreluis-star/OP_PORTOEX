@@ -105,6 +105,16 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .ropts{display:flex;gap:12px;font-size:12px;margin:4px 0 6px}.ropts label{display:flex;gap:4px;align-items:center}
 .seq{width:18px;height:18px;border-radius:50%;color:#fff;font:800 11px var(--cond);display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .sim{font-size:12.5px;margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rcard{width:min(1150px,96vw);max-height:92vh;display:flex;flex-direction:column}
+.rhead{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}.rhead h3{margin:0 0 4px}
+.rtab{overflow:auto;border:1px solid var(--line);border-radius:8px}
+.rtab table{border-collapse:collapse;width:100%;font-size:12.5px}
+.rtab th{background:var(--surface2);text-align:left;padding:6px 8px;font-size:11.5px;color:var(--muted);position:sticky;top:0}
+.rtab td{border-top:1px solid var(--line2);padding:6px 8px;vertical-align:top}
+.rtab .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.rtab .n{font-family:var(--cond);font-weight:800;font-size:16px;color:var(--navy);width:28px}
+.mu{color:var(--muted);font-size:11.5px}.vias{font-size:11.5px;color:var(--navy);margin-top:2px}.vias span{color:var(--muted)}
+.cg2{margin-bottom:2px}details{margin-top:4px;font-size:11.5px}details ol{margin:4px 0;padding-left:18px;max-height:220px;overflow:auto}details li span{color:var(--muted)}
+@media print{body>*:not(#mRot){display:none!important}#mRot{position:static;display:block!important;background:none}.rcard{width:100%;max-height:none;box-shadow:none;border:none}.rtab{overflow:visible;border:none}.noprint{display:none!important}}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;display:none;max-width:90vw}
 .toast.on{display:block}.toast.bad{background:var(--risk)}
 .block{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}
@@ -167,6 +177,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   <datalist id="dlPl"></datalist><datalist id="dlVei"></datalist>
  </div>
  <div class="macts"><button class="tbtn" id="vCancel">Cancelar</button><button class="tbtn pri" id="vGo">Criar e ativar</button></div></div></div>
+<div class="modal" id="mRot"><div class="mcard rcard" id="rotPrint"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -362,13 +373,36 @@ function routeHTML(l){
  const d=RT.data;if(!d||!d.ordem?.length)return opts;
  const nomes=d.ordem.map(c=>MUN.find(m=>m.cod===+c));
  return `<div class="route"><b>${Math.round(d.km).toLocaleString('pt-BR')} km</b> rodoviários · ${fmtMin(d.min)} de direção (caminhão)${d.retorno?' · com retorno':''}${d.aviso?`<div class="meta">${esc(d.aviso)}</div>`:''}
+  <div style="margin:6px 0 2px"><button class="tbtn" id="btnRoteiro" style="padding:3px 10px">📋 Ver roteiro em lista</button></div>
   <ol>${nomes.map((m,i)=>`<li>${m?esc(m.nome)+' - '+m.uf:'?'} <span>${d.pernas[i]?'+'+Math.round(d.pernas[i].km)+' km':''}</span></li>`).join('')}${d.retorno&&d.pernas[nomes.length]?`<li>Retorno a Itajaí <span>+${Math.round(d.pernas[nomes.length].km)} km</span></li>`:''}</ol></div>`+opts}
+function openRoteiro(){
+ const l=laneById(S.active),d=RT.data;if(!l||!d)return;
+ const nomes=d.ordem.map(c=>MUN.find(m=>m.cod===+c));const [hh,mm]=depart(l).split(':').map(Number);const saida=Number.isFinite(hh)?hh*60+(mm||0):null;
+ const hora=min=>{if(saida==null)return'—';const t=saida+min,dd=Math.floor(t/1440),x=t%1440;return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')+(dd?` (+${dd}d)`:'')};
+ const cargasDe=cod=>Object.values(S.rows).filter(r=>r.faixa_id===l.id&&geocode(r.cidade||'')?.cod===+cod);
+ let accKm=0,accMin=0;
+ const linhas=nomes.map((m,i)=>{const p=d.pernas[i]||{km:0,min:0,vias:[],passos:[]};accKm+=p.km;accMin+=p.min;const cs=cargasDe(d.ordem[i]);
+  return `<tr><td class="n">${i+1}</td><td><b>${m?esc(m.nome)+' - '+m.uf:'?'}</b>${(p.vias||[]).length?`<div class="vias">${p.vias.map(v=>`${esc(v.nome)} <span>${Math.round(v.km)} km</span>`).join(' → ')}</div>`:''}
+   ${(p.passos||[]).length?`<details class="noprint"><summary>instruções detalhadas (${p.passos.length})</summary><ol>${p.passos.map(x=>`<li>${esc(x.t)}${x.km?` <span>${x.km} km</span>`:''}</li>`).join('')}</ol></details>`:''}</td>
+   <td class="r">${Math.round(p.km)} km<div class="mu">${fmtMin(p.min)}</div></td><td class="r"><b>${Math.round(accKm)} km</b><div class="mu">${fmtMin(accMin)}</div></td><td class="r">${hora(accMin)}</td>
+   <td>${cs.map(r=>`<div class="cg2">${r.prioridade?`<span class="pb ${r.prioridade}">${PRIO[r.prioridade]}</span>`:''}${esc(r.dest||r.col||'—')}${r.nf?' · NF '+esc(r.nf):''} <span class="mu">${kg(num(r.peso))} · ${num(r.vol)} vol</span></div>`).join('')||'<span class="mu">—</span>'}</td></tr>`});
+ if(d.retorno&&d.pernas[nomes.length]){const p=d.pernas[nomes.length];accKm+=p.km;accMin+=p.min;linhas.push(`<tr><td class="n">↩</td><td><b>Retorno a Itajaí</b>${(p.vias||[]).length?`<div class="vias">${p.vias.map(v=>`${esc(v.nome)} <span>${Math.round(v.km)} km</span>`).join(' → ')}</div>`:''}</td><td class="r">${Math.round(p.km)} km<div class="mu">${fmtMin(p.min)}</div></td><td class="r"><b>${Math.round(accKm)} km</b><div class="mu">${fmtMin(accMin)}</div></td><td class="r">${hora(accMin)}</td><td></td></tr>`)}
+ const gm='https://www.google.com/maps/dir/'+['Itajaí, SC',...nomes.filter(Boolean).map(m=>`${m.nome}, ${m.uf}`),...(d.retorno?['Itajaí, SC']:[])].map(encodeURIComponent).join('/');
+ const rs=Object.values(S.rows).filter(r=>r.faixa_id===l.id);
+ $('rotPrint').innerHTML=`<div class="rhead"><div><h3>Roteiro · ${esc(laneName(l))}</h3>
+   <div class="mu">${dayLabel(S.day)}/${S.day.slice(0,4)} · ${esc(l.veiculo||'')} · ${rs.length} NF · ${kg(sum(rs,'peso'))} · ${sum(rs,'vol')} vol · ${brl(sum(rs,'valor'))}</div>
+   <div style="margin-top:4px"><b>${Math.round(d.km).toLocaleString('pt-BR')} km</b> rodoviários · ${fmtMin(d.min)} de direção · saída ${depart(l)} de Itajaí${d.otimizada?' · ordem otimizada':''}${d.retorno?' · com retorno':''}</div></div>
+   <div class="noprint" style="display:flex;gap:6px;align-items:flex-start"><a class="tbtn" href="${gm}" target="_blank" rel="noopener">Abrir no Google Maps</a><button class="tbtn" id="rPrint">Imprimir</button><button class="tbtn" id="rClose">Fechar</button></div></div>
+  <div class="rtab"><table><thead><tr><th>#</th><th>Parada · principais vias do trecho</th><th class="r">Trecho</th><th class="r">Acumulado</th><th class="r">Chegada*</th><th>Cargas</th></tr></thead>
+   <tbody><tr><td class="n">0</td><td><b>Portoex · Itajaí - SC</b> <span class="mu">(saída)</span></td><td></td><td></td><td class="r">${depart(l)}</td><td></td></tr>${linhas.join('')}</tbody></table></div>
+  <p class="mu" style="margin:8px 0 0">* Chegada estimada considerando só o tempo de direção para caminhão a partir do horário de saída, sem paradas, descarga ou descanso do motorista. Distâncias do centro de cada cidade. O Google Maps calcula para carro e pode sugerir caminho diferente.</p>`;
+ $('mRot').classList.add('on');$('rClose').onclick=()=>$('mRot').classList.remove('on');$('rPrint').onclick=()=>window.print()}
 function renderActive(){
  const vs=S.lanes.filter(l=>l.tipo==='veiculo').sort((a,b)=>depart(a).localeCompare(depart(b)));
  $('active').innerHTML=`<option value="">— escolha a placa ativa —</option>`+vs.map(l=>`<option value="${l.id}" ${l.id===S.active?'selected':''}>${esc(laneName(l))}</option>`).join('');
  const l=laneById(S.active),selRows=[...S.sel].map(i=>S.rows[i]).filter(Boolean);
  if(!l){$('cap').innerHTML='Escolha a placa que você está montando. As cargas selecionadas serão atribuídas a ela.';return}
- setTimeout(()=>{const a=$('rOtim'),b=$('rRet');if(a)a.onchange=()=>{RT.key=null;ensureRoute()};if(b)b.onchange=()=>{RT.key=null;ensureRoute()}},0);
+ setTimeout(()=>{const br=$('btnRoteiro');if(br)br.onclick=openRoteiro;const a=$('rOtim'),b=$('rRet');if(a)a.onchange=()=>{RT.key=null;ensureRoute()};if(b)b.onchange=()=>{RT.key=null;ensureRoute()}},0);
  const cur=Object.values(S.rows).filter(r=>r.faixa_id===l.id),cw=sum(cur,'peso'),sw=sum(selRows,'peso'),cap=capKg(l),over=cap&&cw+sw>cap,fo=frotaOf(l);
  $('cap').innerHTML=`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${extractPlates(l.placa).map(p=>`<span class="ptag ${FC[fo]}">${p}</span>`).join('')}<span>${esc(FN[fo])} · ${esc((l.veiculo||'').split(' - ')[0]||'tipo não informado')}</span></div>
   <div class="bar ${over?'over':''}"><i class="b1" style="width:${cap?Math.min(100,cw/cap*100):0}%"></i><i class="b2" style="width:${cap?Math.max(0,Math.min(100-cw/cap*100,sw/cap*100)):0}%"></i></div>
@@ -429,6 +463,7 @@ $('day').onchange=async e=>{S.day=e.target.value;S.sel.clear();try{localStorage.
 $('btnNewVeh').onclick=()=>{if(decide('veiculo')!=='allow')return toast('Seu perfil não cria veículos',true);
  $('dlPl').innerHTML=S.placas.filter(p=>p.ativo).map(p=>`<option value="${p.placa}">${FN[p.tipo]}</option>`).join('');
  $('dlVei').innerHTML=[...new Set(S.lanes.map(l=>l.veiculo).filter(Boolean))].map(v=>`<option value="${esc(v)}">`).join('');$('mVeh').classList.add('on')};
+$('mRot').onclick=e=>{if(e.target.id==='mRot')$('mRot').classList.remove('on')};
 $('vCancel').onclick=()=>$('mVeh').classList.remove('on');
 $('vGo').onclick=async()=>{const h=$('vHora').value;if(!h)return toast('Informe o horário',true);const [hh,mm]=h.split(':'),desc=$('vDesc').value.trim();
  const placa=[$('vPl1').value,$('vPl2').value].map(normPlate).filter(Boolean).join(' / ')||null;
