@@ -87,6 +87,18 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .form .full{grid-column:1/-1}
 .form input{border:1px solid var(--line);border-radius:6px;padding:7px 9px;color:var(--ink);font-size:14px}
 .macts{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.vehs{border-bottom:1px solid var(--line2);max-height:34vh;overflow:auto;flex:none}
+.vehs .vh{display:grid;grid-template-columns:14px 1fr auto 26px;gap:8px;align-items:center;padding:5px 14px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--line2)}
+.vehs .vh:hover{background:var(--surface2)}.vehs .vh.act{background:#E6ECF6;font-weight:700}
+.vehs .vh.off{opacity:.45}
+.vehs .dot{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+.vehs .vn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vehs .vs{color:var(--muted);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.vehs .eye{border:none;background:none;font-size:14px;padding:0;color:var(--muted)}
+.vehs .vt{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;font-family:var(--cond);font-size:15px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;background:var(--surface2);border-bottom:1px solid var(--line2);position:sticky;top:0}
+.vehs .vt button{font-family:var(--font);font-size:11.5px;text-transform:none;letter-spacing:0;border:1px solid var(--line);background:#fff;border-radius:5px;padding:2px 7px;color:var(--ink)}
+.minibar{height:4px;border-radius:2px;background:#E6EAED;overflow:hidden;grid-column:2/4}.minibar i{display:block;height:100%}
+.pin.ring{outline:3px solid var(--navy);outline-offset:1px}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;display:none;max-width:90vw}
 .toast.on{display:block}.toast.bad{background:var(--risk)}
 .block{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}
@@ -118,8 +130,10 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   <div class="filt">
    <input type="search" id="q" placeholder="Filtrar cidade, destinatário, NF…">
    <select id="ord" title="Ordem da lista"><option value="uf">Destino (UF › cidade)</option><option value="dist">Distância de Itajaí</option><option value="peso">Peso (maior primeiro)</option></select>
-   <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="showOth"> mostrar cargas de outros veículos</label>
+   <select id="mode" title="O que mostrar no mapa"><option value="pend">Só pendentes + placa ativa</option><option value="all" selected>Pendentes + todos os veículos</option><option value="veh">Só cargas em veículos</option></select>
+   <label style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" id="lines" checked> linhas Portoex → destinos</label>
   </div>
+  <div class="vehs" id="vehs"></div>
   <div class="list" id="list"></div>
   <div class="selbox" id="selbox"></div>
  </aside>
@@ -131,7 +145,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
    <button class="tbtn" id="btnFit" title="Enquadrar todos os destinos">Enquadrar</button>
   </div>
   <div class="hint" id="hint">Segure o botão do mouse e contorne os destinos. Solte para selecionar. <b>Esc</b> sai do laço.</div>
-  <div class="legend"><div><i style="background:var(--orange)"></i>sem veículo (número = NFs)</div><div><i style="background:var(--navy)"></i>na placa ativa</div><div><i style="background:#8A99A6"></i>em outros veículos</div><div><i style="background:#fff;box-shadow:0 0 0 3px var(--sel)"></i>selecionado</div></div>
+  <div class="legend"><div><i style="background:var(--orange)"></i>sem veículo (número = NFs)</div><div><i style="background:conic-gradient(#7B2CBF 0 50%,#0077B6 50%)"></i>em veículos (cor de cada veículo; fatias quando há mais de um)</div><div><i style="background:#fff;box-shadow:0 0 0 3px var(--navy)"></i>contorno azul: tem carga da placa ativa</div><div><i style="background:#fff;box-shadow:0 0 0 3px var(--sel)"></i>selecionado</div></div>
  </div>
 </div>
 <div class="block" id="blocked" style="display:none"></div>
@@ -168,7 +182,9 @@ const normPlate=p=>String(p||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const extractPlates=raw=>[...new Set(normPlate(raw).match(/[A-Z]{3}[0-9][A-Z0-9][0-9]{2}/g)||[])];
 const PRIO={traseira:'1º T',restricao:'1º R',importante:'2º',complementar:'3º'};
 
-const S={me:null,perms:{},approvers:{},placas:[],days:[],day:null,lanes:[],rows:{},active:localStorage.getItem(ACTKEY)||null,sel:new Set(),open:new Set()};
+const PAL=['#7B2CBF','#0077B6','#C2185B','#00897B','#5D4037','#3949AB','#AD1457','#00838F','#6D4C41','#283593','#8E24AA','#1565C0','#D81B60','#455A64','#9C27B0','#00695C','#4E342E','#303F9F','#880E4F','#006064'];
+const HIDKEY='px-mapa-ocultos-v1';
+const S={hidden:new Set((()=>{try{return JSON.parse(localStorage.getItem(HIDKEY)||'[]')}catch(e){return[]}})()),me:null,perms:{},approvers:{},placas:[],days:[],day:null,lanes:[],rows:{},active:localStorage.getItem(ACTKEY)||null,sel:new Set(),open:new Set()};
 
 /* ---------- municípios ---------- */
 let MUN=[],MIDX=new Map(),UFS=new Set();
@@ -214,11 +230,16 @@ async function loadDay(){
  S.sel=new Set([...S.sel].filter(id=>S.rows[id]&&laneById(S.rows[id].faixa_id)?.tipo!=='veiculo'));
 }
 const isFree=r=>laneById(r.faixa_id)?.tipo!=='veiculo';
+const vehicles=()=>S.lanes.filter(l=>l.tipo==='veiculo').sort((a,b)=>depart(a).localeCompare(depart(b))||(a.ordem-b.ordem));
+const colorOf=id=>{const i=vehicles().findIndex(l=>l.id===id);return i<0?'#8A99A6':PAL[i%PAL.length]};
+const saveHid=()=>{try{localStorage.setItem(HIDKEY,JSON.stringify([...S.hidden]))}catch(e){}};
 function cities(){
- const qq=norm($('q').value),showOth=$('showOth').checked,map=new Map(),unk=[];
+ const qq=norm($('q').value),mode=$('mode').value,map=new Map(),unk=[];
  for(const r of Object.values(S.rows)){
   const l=laneById(r.faixa_id),free=l?.tipo!=='veiculo',act=r.faixa_id===S.active;
-  if(!free&&!act&&!showOth)continue;
+  if(free&&mode==='veh')continue;
+  if(!free&&!act&&mode==='pend')continue;
+  if(!free&&!act&&S.hidden.has(r.faixa_id))continue;
   if(qq&&!norm([r.cidade,r.dest,r.nf,r.col].join(' ')).includes(qq))continue;
   const g=geocode(r.cidade||'');if(!g){unk.push(r);continue}
   const k=g.cod;if(!map.has(k))map.set(k,{m:g,free:[],act:[],oth:[]});
@@ -256,16 +277,18 @@ function renderMap(fit){
  layer.clearLayers();const {list}=cities();
  for(const c of list){const tot=[...c.free,...c.act,...c.oth],peso=sum(tot,'peso');
   const size=Math.round(Math.min(46,18+Math.sqrt(peso)/3.2));
-  const cls=c.free.length&&c.act.length?'mix':c.free.length?'free':c.act.length?'act':'oth';
-  const selN=c.free.filter(r=>S.sel.has(r.id)).length,label=c.free.length||c.act.length||c.oth.length;
-  const ic=L.divIcon({className:'',html:`<div class="pin ${cls} ${selN?'sel':''}" style="width:${size}px;height:${size}px">${label}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
+  const segs=[];if(c.free.length)segs.push(['#E8611A',c.free.length]);const byV={};[...c.act,...c.oth].forEach(r=>byV[r.faixa_id]=(byV[r.faixa_id]||0)+1);
+  Object.entries(byV).sort((a,b)=>b[1]-a[1]).forEach(([id,n])=>segs.push([colorOf(id),n]));
+  const totN=segs.reduce((a,x)=>a+x[1],0);let acc=0;const grad=segs.length===1?segs[0][0]:`conic-gradient(${segs.map(([col,n])=>{const a0=acc/totN*100;acc+=n;return `${col} ${a0}% ${acc/totN*100}%`}).join(',')})`;
+  const selN=c.free.filter(r=>S.sel.has(r.id)).length,label=c.free.length?c.free.length:totN;
+  const ic=L.divIcon({className:'',html:`<div class="pin ${selN?'sel':''} ${c.act.length?'ring':''}" style="width:${size}px;height:${size}px;background:${grad};color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)">${label}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
   const mk=L.marker([c.m.lat,c.m.lon],{icon:ic,riseOnHover:true}).addTo(layer);
-  const oth=[...new Set(c.oth.map(r=>laneName(laneById(r.faixa_id))))];
+  const oth=Object.entries([...c.act,...c.oth].reduce((m,r)=>{m[r.faixa_id]=(m[r.faixa_id]||[]);m[r.faixa_id].push(r);return m},{})).map(([id,rs])=>`<span style="color:${colorOf(id)}">●</span> ${esc(laneName(laneById(id)))}: ${rs.length} NF · ${kg(sum(rs,'peso'))}`);
   mk.bindTooltip(`<div class="tipc"><b>${esc(c.m.nome)} - ${c.m.uf}</b> · ${Math.round(dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon}))} km<br>
    ${c.free.length?`Sem veículo: <b>${c.free.length}</b> NF · ${kg(sum(c.free,'peso'))} · ${sum(c.free,'vol')} vol${selN?` · <span style="color:#14A44D">${selN} selecionada(s)</span>`:''}<br>`:''}
-   ${c.act.length?`Na placa ativa: <b>${c.act.length}</b> NF · ${kg(sum(c.act,'peso'))}<br>`:''}
-   ${oth.length?`Outros veículos: ${esc(oth.join(', '))}`:''}</div>`,{direction:'top',offset:[0,-size/2]});
+   ${oth.length?oth.join('<br>'):''}</div>`,{direction:'top',offset:[0,-size/2]});
   mk.on('click',()=>{if(lassoOn)return;toggleCity(c)})}
+ if($('lines').checked){for(const c of list){const ids=new Set([...c.act,...c.oth].map(r=>r.faixa_id));ids.forEach(id=>L.polyline([[ORIGEM.lat,ORIGEM.lon],[c.m.lat,c.m.lon]],{color:colorOf(id),weight:id===S.active?4:2,opacity:id===S.active?.9:.45,interactive:false}).addTo(layer))}}
  if(fit){const b=list.map(c=>[c.m.lat,c.m.lon]);b.push([ORIGEM.lat,ORIGEM.lon]);if(b.length>1)map.fitBounds(b,{padding:[40,40],maxZoom:9})}
 }
 function toggleCity(c){const ids=c.free.map(r=>r.id);if(!ids.length)return toast('Esta cidade não tem cargas sem veículo');const all=ids.every(i=>S.sel.has(i));ids.forEach(i=>all?S.sel.delete(i):S.sel.add(i));renderAll(false)}
@@ -274,15 +297,17 @@ function toggleCity(c){const ids=c.free.map(r=>r.id);if(!ids.length)return toast
 function renderList(){
  const {list,unk}=cities(),ord=$('ord').value,act=laneById(S.active);
  const free=list.filter(c=>c.free.length),actC=list.filter(c=>c.act.length),oth=list.filter(c=>c.oth.length);
+ if($('mode').value==='veh')free.length=0;
  const sortF=a=>{const d=c=>dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon});return ord==='dist'?a.sort((x,y)=>d(x)-d(y)):ord==='peso'?a.sort((x,y)=>sum(y.free.concat(y.act),'peso')-sum(x.free.concat(x.act),'peso')):a.sort((x,y)=>x.m.uf.localeCompare(y.m.uf)||x.m.nome.localeCompare(y.m.nome))};
  const crow=(r,withLane)=>`<div class="cr"><input type="checkbox" data-c="${r.id}" ${S.sel.has(r.id)?'checked':''} ${isFree(r)?'':'disabled'}><span class="d" title="${esc(r.dest)}">${r.prioridade?`<span class="pb ${r.prioridade}">${PRIO[r.prioridade]}</span>`:''}${esc(r.dest||r.col||'—')}</span><span class="m">${r.nf?'NF '+esc(String(r.nf).slice(0,14))+' · ':''}${kg(num(r.peso))} · ${num(r.vol)} vol</span>${withLane?`<span class="ln">${esc(laneName(laneById(r.faixa_id)))}${r.faixa_id===S.active&&decide('mover',r)!=='deny'?` · <a href="#" data-rm="${r.id}">tirar da placa</a>`:''}</span>`:''}</div>`;
- const block=(arr,kind)=>{let h='',uf=null;for(const c of sortF(arr)){if(ord==='uf'&&c.m.uf!==uf){uf=c.m.uf;h+=`<div class="uf">${uf}</div>`}
-   const rs=c[kind],k=kind+c.m.cod,sel=kind==='free'&&rs.every(r=>S.sel.has(r.id));
+ const block=(arr,kind,pre='')=>{let h='',uf=null;for(const c of sortF(arr)){if(ord==='uf'&&c.m.uf!==uf){uf=c.m.uf;h+=`<div class="uf">${uf}</div>`}
+   const rs=c[kind],k=pre+kind+c.m.cod,sel=kind==='free'&&rs.every(r=>S.sel.has(r.id));
    h+=`<div class="city ${S.open.has(k)?'open':''} ${sel?'sel':''}"><div class="ch" data-city="${k}"><span>${S.open.has(k)?'▾':'▸'}</span><span class="nm">${esc(c.m.nome)}${ord!=='uf'?' - '+c.m.uf:''}</span><span class="st">${rs.length} NF · ${kg(sum(rs,'peso'))}</span>${kind==='free'?`<input type="checkbox" data-cityall="${c.m.cod}" ${sel?'checked':''} title="Selecionar a cidade toda">`:''}</div>
     <div class="cg">${rs.map(r=>crow(r,kind!=='free')).join('')}</div></div>`}return h};
  let h=`<div class="sec">Sem veículo · ${free.reduce((a,c)=>a+c.free.length,0)} NF</div>`+(free.length?block(free,'free'):'<div class="empty">Nenhuma carga sem veículo neste dia (ou no filtro).</div>');
  if(act)h+=`<div class="sec">Na placa ativa · ${actC.reduce((a,c)=>a+c.act.length,0)} NF</div>`+(actC.length?block(actC,'act'):'<div class="empty">Nenhuma carga ainda. Selecione destinos e clique em "Atribuir".</div>');
- if($('showOth').checked)h+=`<div class="sec">Em outros veículos · ${oth.reduce((a,c)=>a+c.oth.length,0)} NF</div>`+block(oth,'oth');
+ if($('mode').value!=='pend'){for(const v of vehicles()){if(v.id===S.active||S.hidden.has(v.id))continue;const cs=list.filter(c=>c.oth.some(r=>r.faixa_id===v.id)).map(c=>({...c,oth:c.oth.filter(r=>r.faixa_id===v.id)}));if(!cs.length)continue;
+   h+=`<div class="sec"><span style="color:${colorOf(v.id)}">●</span> ${esc(laneName(v))} · ${cs.reduce((a,c)=>a+c.oth.length,0)} NF</div>`+block(cs,'oth',v.id)}}
  if(unk.length){const groups={};unk.forEach(r=>{const k=r.cidade||'(sem cidade)';(groups[k]=groups[k]||[]).push(r)});
   h+=`<div class="sec">Sem localização · ${unk.length} NF</div><div class="empty" style="padding:8px 14px">Cidades que não reconheci. Digite a cidade certa (ex.: <i>Jundiaí/SP</i>) e tecle Enter: o sistema lembra para as próximas vezes.</div>`+
    Object.entries(groups).map(([k,rs])=>`<div class="city"><div class="ch" style="cursor:default"><span class="nm" title="${esc(k)}">${esc(k)}</span><span class="st">${rs.length} NF</span></div><div style="padding:0 14px 8px 34px;display:flex;gap:6px"><input data-alias="${esc(k)}" placeholder="Cidade/UF correta" style="flex:1;border:1px solid var(--line);border-radius:5px;padding:4px 6px"></div></div>`).join('')}
@@ -308,7 +333,12 @@ function renderSel(){
   <div class="acts"><button class="tbtn" id="sClear">Limpar</button><button class="tbtn pri" id="sGo" ${l?'':'disabled'}>${l?'Atribuir à placa ativa':'Escolha a placa ativa'}</button></div>`;
  $('sClear').onclick=()=>{S.sel.clear();renderAll(false)};$('sGo').onclick=assign;
 }
-function renderAll(fit){renderActive();renderList();renderSel();renderMap(fit)}
+function renderVehs(){
+ const vs=vehicles();if(!vs.length){$('vehs').innerHTML='';return}
+ $('vehs').innerHTML=`<div class="vt">Veículos do dia · ${vs.length}<span><button id="vAll">mostrar todos</button> <button id="vNone">ocultar todos</button></span></div>`+vs.map(v=>{const rs=Object.values(S.rows).filter(r=>r.faixa_id===v.id),w=sum(rs,'peso'),cap=capKg(v),pct=cap?Math.round(w/cap*100):null,col=colorOf(v.id);
+  return `<div class="vh ${v.id===S.active?'act':''} ${S.hidden.has(v.id)?'off':''}" data-veh="${v.id}" title="Clique para tornar a placa ativa"><span class="dot" style="background:${col}"></span><span class="vn">${esc(laneName(v))}</span><span class="vs">${rs.length} NF · ${kg(w)}${pct!=null?' · '+pct+'%':''}</span><button class="eye" data-eye="${v.id}" title="${S.hidden.has(v.id)?'Mostrar no mapa':'Ocultar do mapa'}">${S.hidden.has(v.id)?'🙈':'👁'}</button>${cap?`<div class="minibar"><i style="width:${Math.min(100,pct)}%;background:${pct>100?'var(--risk)':col}"></i></div>`:''}</div>`}).join('');
+ $('vAll').onclick=()=>{S.hidden.clear();saveHid();renderAll(false)};$('vNone').onclick=()=>{vs.forEach(v=>v.id!==S.active&&S.hidden.add(v.id));saveHid();renderAll(false)}}
+function renderAll(fit){renderActive();renderVehs();renderList();renderSel();renderMap(fit)}
 
 /* ---------- ações ---------- */
 async function moveTo(ids,toId,why){
@@ -328,6 +358,8 @@ async function unassign(id){const sec=S.lanes.find(l=>l.tipo==='secao'&&/^em def
 /* ---------- eventos ---------- */
 document.addEventListener('click',e=>{
  const ch=e.target.closest('[data-city]');if(ch&&!e.target.closest('input')){const k=ch.dataset.city;S.open.has(k)?S.open.delete(k):S.open.add(k);renderList();return}
+ const eye=e.target.closest('[data-eye]');if(eye){const id=eye.dataset.eye;S.hidden.has(id)?S.hidden.delete(id):S.hidden.add(id);saveHid();renderAll(false);return}
+ const vh=e.target.closest('[data-veh]');if(vh){S.active=vh.dataset.veh;S.hidden.delete(S.active);try{localStorage.setItem(ACTKEY,S.active)}catch(x){}renderAll(false);return}
  const rm=e.target.closest('[data-rm]');if(rm){e.preventDefault();unassign(rm.dataset.rm)}});
 document.addEventListener('change',e=>{const t=e.target;
  if(t.dataset.c){t.checked?S.sel.add(t.dataset.c):S.sel.delete(t.dataset.c);renderAll(false)}
@@ -338,7 +370,7 @@ document.addEventListener('keydown',e=>{
  if(e.target.matches('input,select,textarea'))return;
  if(e.key==='l'||e.key==='L')setLasso(!lassoOn);if(e.key==='Escape'){if(lassoOn)setLasso(false);else{S.sel.clear();renderAll(false)}}});
 $('btnLasso').onclick=()=>setLasso(!lassoOn);$('btnClear').onclick=()=>{S.sel.clear();renderAll(false)};$('btnFit').onclick=()=>renderMap(true);
-$('q').oninput=()=>renderAll(false);$('ord').onchange=renderList;$('showOth').onchange=()=>renderAll(false);
+$('q').oninput=()=>renderAll(false);$('ord').onchange=renderList;$('mode').onchange=()=>renderAll(false);$('lines').onchange=()=>renderMap(false);
 $('active').onchange=e=>{S.active=e.target.value||null;try{localStorage.setItem(ACTKEY,S.active||'')}catch(x){}renderAll(false)};
 $('day').onchange=async e=>{S.day=e.target.value;S.sel.clear();try{localStorage.setItem(DAYKEY,S.day)}catch(x){}await loadDay();renderAll(true)};
 // novo veículo
