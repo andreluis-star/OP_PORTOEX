@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KPI · Portoex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<style>
+:root{--navy:#1A3A6E;--navy-d:#122a52;--orange:#E8611A;--paper:#EEF1F4;--surface:#fff;--surface2:#F6F8FA;--ink:#16222E;--muted:#5F6E7B;--line:#D5DCE2;--line2:#E8ECEF;
+ --ok:#1F8A4C;--warn:#C27612;--risk:#C0392B;--plum:#6A4BA0;--sky:#2F78C4;--font:"Inter",Arial,sans-serif;--cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font);font-size:13.5px;color:var(--ink);background:var(--paper)}
+button,select,input{font:inherit;color:inherit}button{cursor:pointer}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 20px;background:var(--surface);border-bottom:3px solid var(--orange)}
+.brand{display:flex;align-items:center;gap:9px}.brand svg{width:38px;height:31px}
+.brand b{font-family:var(--cond);font-size:23px;font-weight:800;color:var(--navy);letter-spacing:.5px}.brand b em{font-style:normal;color:var(--orange)}
+.brand span{display:block;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:none;background:var(--surface);padding:6px 12px;font-weight:600;border-right:1px solid var(--line)}.seg button:last-child{border-right:none}
+.seg button.on{background:var(--navy);color:#fff}
+.top input[type=date],.top select{border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-weight:600;background:#fff}
+.sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--line2);border-radius:20px;padding:4px 10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.dot.on{background:var(--ok)}.dot.bad{background:var(--risk)}
+.tbtn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 12px;font-weight:600;text-decoration:none;color:var(--ink)}
+main{padding:16px 20px 40px;max-width:1700px;margin:0 auto}
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+.hk{background:var(--surface);border-radius:12px;padding:14px 16px;box-shadow:0 1px 2px rgba(16,34,60,.06);border:1px solid var(--line2);position:relative;overflow:hidden}
+.hk .l{font-size:11.5px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:600}
+.hk .v{font-family:var(--cond);font-size:34px;font-weight:800;line-height:1.05;color:var(--navy);font-variant-numeric:tabular-nums}
+.hk .s{font-size:12px;color:var(--muted)}
+.hk.or .v{color:var(--orange)}.hk.ok .v{color:var(--ok)}
+.hk .meter{position:absolute;left:0;bottom:0;height:4px;background:var(--navy)}.hk.or .meter{background:var(--orange)}.hk.ok .meter{background:var(--ok)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.panel{background:var(--surface);border-radius:14px;border:1px solid var(--line2);box-shadow:0 1px 3px rgba(16,34,60,.06);overflow:hidden}
+.ph{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line2)}
+.ph h2{margin:0;font-family:var(--cond);font-size:22px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+.panel.l .ph{border-top:5px solid var(--navy)}.panel.l .ph h2{color:var(--navy)}
+.panel.r .ph{border-top:5px solid var(--orange)}.panel.r .ph h2{color:var(--orange)}
+.ph .n{margin-left:auto;font-family:var(--cond);font-size:26px;font-weight:800;color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line2)}
+.tile{padding:10px 14px;border-right:1px solid var(--line2)}.tile:last-child{border-right:none}
+.tile .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.tile .v{font-family:var(--cond);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line2)}
+.card{padding:12px 16px;border-right:1px solid var(--line2);min-width:0}.card:last-child{border-right:none}
+.card h3{margin:0 0 8px;font-size:12px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.donut{display:flex;gap:14px;align-items:center}
+.donut svg{flex:none}.donut path{cursor:pointer;transition:opacity .15s}.donut path:hover{opacity:.8}
+.leg{display:flex;flex-direction:column;gap:3px;font-size:12.5px;min-width:0;flex:1}
+.leg div{display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:5px;padding:1px 4px}.leg div:hover{background:var(--surface2)}
+.leg i{width:10px;height:10px;border-radius:3px;flex:none}.leg span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.leg b{font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:minmax(0,1.3fr) 2fr auto;gap:8px;align-items:center;font-size:12.5px;cursor:pointer;border-radius:5px;padding:1px 4px}
+.bar:hover{background:var(--surface2)}
+.bar .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .tr{height:9px;background:var(--line2);border-radius:5px;overflow:hidden}.bar .tr i{display:block;height:100%;border-radius:5px}
+.bar b{font-variant-numeric:tabular-nums;font-size:12px}
+.bar.sel{background:#E8EEF8;outline:1px solid var(--navy)}
+.pt{display:inline-block;font-family:var(--cond);font-weight:700;font-size:12px;padding:0 6px;border-radius:3px;margin-right:4px}
+.pt.pf{background:#1A3A6E;color:#E8611A}.pt.pa{background:#E8611A;color:#1A3A6E}.pt.pt3{background:#E8611A;color:#fff}
+.inv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ib{border-radius:10px;padding:10px 12px;cursor:pointer;border:1px solid transparent}
+.ib .v{font-family:var(--cond);font-size:28px;font-weight:800;line-height:1}.ib .l{font-size:11.5px;font-weight:600}
+.ib.ok{background:#E3F4EA;color:var(--ok)}.ib.no{background:#FBE5E2;color:var(--risk)}.ib.nn{background:var(--surface2);color:var(--muted)}
+.ib.sel{border-color:currentColor}
+.stack{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--line2)}.stack i{display:block;height:100%}
+.filters{display:flex;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid var(--line2);align-items:center;min-height:42px}
+.filters input{flex:1;min-width:140px;border:1px solid var(--line);border-radius:7px;padding:5px 9px}
+.fc{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600}
+.panel.r .fc{background:var(--orange)}
+.fc button{border:none;background:none;color:#fff;padding:0;font-size:14px;line-height:1}
+.list{max-height:620px;overflow:auto}
+.gh{position:sticky;top:0;background:var(--surface2);padding:6px 16px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--line2);display:flex;gap:8px;z-index:1}
+.gh b{color:var(--ink)}.gh .st{margin-left:auto;font-weight:600}
+.it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:7px 16px;border-bottom:1px solid var(--line2);cursor:pointer}
+.it:hover{background:#F3F6FA}
+.it .a{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .b{grid-column:1/2;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .c{grid-row:1/3;grid-column:2;display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:12px}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.t-ok{background:#DDF3E4;color:#1E6B3A}.t-rota{background:#E2EAF6;color:#1A3A6E}.t-oc{background:#FFF0D6;color:#9A5B00}.t-no{background:#FBDDDA;color:#9E2A1F}.t-gr{background:#EEF1F4;color:#5F6E7B}.t-inv{background:#E3F4EA;color:#1F8A4C}.t-invno{background:#FBDDDA;color:#C0392B}.t-age{background:#EDE6F7;color:#6A4BA0}
+.sv{font-weight:800;font-size:10.5px;border-radius:3px;padding:0 5px;border:1px solid}
+.sv-econ{background:#fff;color:#0B2A5B;border-color:#C9D3E3}.sv-expr{background:#FFE600;color:#000;border-color:#E0C800}.sv-pers{background:#E10600;color:#fff;border-color:#B30000}
+.empty{padding:22px 16px;color:var(--muted);text-align:center}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--surface);z-index:50;transform:translateX(105%);transition:transform .2s;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.15)}
+.drawer.on{transform:none}.scrim{position:fixed;inset:0;background:rgba(10,18,26,.35);z-index:49;display:none}.scrim.on{display:block}
+.dh{padding:14px 18px;border-bottom:1px solid var(--line2);display:flex;gap:10px;align-items:flex-start}.dh h3{margin:0;font-family:var(--cond);font-size:21px;color:var(--navy);flex:1}
+.dh p{margin:2px 0 0;color:var(--muted);font-size:12.5px;font-family:var(--font)}
+.x{border:none;background:none;font-size:24px;color:var(--muted);line-height:1}
+.db{flex:1;overflow:auto;padding:14px 18px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:5px 10px;font-size:13px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
+.box{border:1px solid var(--line2);border-radius:10px;padding:10px 12px;margin:12px 0;background:var(--surface2)}.box h4{margin:0 0 6px;font-size:13px}
+.box.ok{background:#EEF8F2;border-color:#BFE3CC}.box.no{background:#FCEFEC;border-color:#F0C3BC}
+.df{padding:12px 18px;border-top:1px solid var(--line2);display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 14px;font-weight:650;text-decoration:none;color:var(--ink)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.block{min-height:70vh;display:grid;place-items:center;text-align:center;color:var(--muted)}.block b{color:var(--ink);font-size:16px}
+.loading{opacity:.55;pointer-events:none}
+@media (max-width:1100px){.cols{grid-template-columns:1fr}.hero{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header class="top">
+ <div class="brand"><svg viewBox="0 0 130 105"><polygon points="0,85 18,85 48,48 30,25" fill="#1A3A6E"/><polygon points="52,85 70,85 40,48 22,25" fill="#1A3A6E"/><polygon points="18,10 36,10 78,75 60,75" fill="#E8611A"/><polygon points="55,75 73,75 130,0 112,0" fill="#E8611A"/></svg>
+  <div><b>PORTO<em>EX</em></b><span>Indicadores · KPI</span></div></div>
+ <div class="seg" id="per"><button data-p="hoje">Hoje</button><button data-p="ontem">Ontem</button><button data-p="7">7 dias</button><button data-p="30">30 dias</button><button data-p="custom">Período</button></div>
+ <span id="custom" style="display:none;gap:6px;align-items:center"><input type="date" id="dIni"> até <input type="date" id="dFim"></span>
+ <select id="resp" title="Responsável"></select>
+ <span class="sp"></span>
+ <span class="chip" id="invChip"><span class="dot" id="invDot"></span><span id="invTxt">Inventário…</span></span>
+ <span class="chip"><span class="dot" id="live"></span><span id="who"></span></span>
+ <a class="tbtn" href="./">← Programação</a>
+</header>
+<main id="main" style="display:none">
+ <section class="hero" id="hero"></section>
+ <section class="cols">
+  <div class="panel l" id="pL"></div>
+  <div class="panel r" id="pR"></div>
+ </section>
+ <p style="color:var(--muted);font-size:12px;margin:14px 2px 0" id="nota"></p>
+</main>
+<div class="block" id="blocked" style="display:none"></div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer"><div class="dh"><h3 id="dT"></h3><button class="x" id="dX">×</button></div><div class="db" id="dB"></div><div class="df" id="dF"></div></aside>
+
+<script>
+(function(){
+const SUPA_URL='https://puhbmwsoqarbndedvved.supabase.co',SUPA_KEY='sb_publishable_0iJyFXb_I-YrdY3dsGALHA_OVoEv9cw';
+const INV_URL='https://portoex-inventario-default-rtdb.firebaseio.com/inventario.json';
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+function num(s){if(s==null||s==='')return 0;s=String(s).replace(/R\$\s?/,'').trim();if(/,\d{1,3}$/.test(s))s=s.replace(/\./g,'').replace(',','.');const m=s.match(/-?\d+(\.\d+)?/);return m?parseFloat(m[0]):0}
+const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brlK=v=>v>=1e6?'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi':v>=1e3?'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil':brl(v);
+const kg=v=>v>=1000?(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' t':v.toLocaleString('pt-BR',{maximumFractionDigits:0})+' kg';
+const n0=v=>v.toLocaleString('pt-BR');
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const dayLabel=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'';
+const iso=dt=>dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+const addD=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return iso(x)};
+const q=async p=>{const{data,error}=await p;if(error)throw error;return data};
+const nfNum=s=>String(s||'').replace(/\D/g,'').replace(/^0+/,'');
+const nfList=s=>[...new Set((String(s||'').match(/\d{2,}/g)||[]).map(nfNum).filter(Boolean))];
+const normPlate=p=>String(p||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const extractPlates=raw=>[...new Set(normPlate(raw).match(/[A-Z]{3}[0-9][A-Z0-9][0-9]{2}/g)||[])];
+const firstWords=n=>{const w=String(n||'').replace(/^redespacho\s+/i,'').trim().split(/\s+/);return w.slice(0,(w[0]||'').length<=3?3:2).join(' ')};
+const ckey=r=>{const nf=nfList(r.nf).join('-'),d=norm(firstWords(r.dest));return nf?'nf:'+nf+'|'+d:(d?'cd:'+norm(r.col).slice(0,40)+'|'+d:null)};
+
+const S={me:null,mode:'bloq',perms:{},placas:[],per:'hoje',ini:null,fim:null,resp:'',rows:[],prev:new Map(),inv:null,invTs:null,invErr:null,fL:null,fR:null,qL:'',qR:''};
+const STC={'OK':'#1F8A4C','Em rota':'#2F78C4','Programado':'#7FA6D9','Em definição':'#A8B3BD','Ocorrência':'#C27612','Reprogramado':'#6A4BA0','Não realizado':'#C0392B','Cancelado':'#333'};
+const BRC={entregue:['Entregue','#1F8A4C'],parcial:['Parcial','#C27612'],nao_entregue:['Não entregue','#C0392B'],manifestada:['Em rota','#2F78C4'],ocorrencia:['Ocorrência','#8A6D3B'],'':['Sem baixa','#C9D1D8']};
+const FROTA={frota:['Frota','pf','#1A3A6E'],agregado:['Agregado','pa','#E8611A'],terceiro:['Terceiro','pt3','#F3A57A']};
+function frotaOf(placa){const ps=extractPlates(placa),m=Object.fromEntries(S.placas.filter(p=>p.ativo).map(p=>[p.placa,p.tipo]));return ps.some(p=>m[p]==='frota')?'frota':ps.some(p=>m[p]==='agregado')?'agregado':'terceiro'}
+function servK(v){const n=norm(v);return n.startsWith('econom')?'econ':n.startsWith('expres')?'expr':n.startsWith('personal')?'pers':''}
+const SERVN={econ:'Econômico',expr:'Expresso',pers:'Personalizado','':'Outros / sem serviço'};
+const SERVC={econ:'#0B2A5B',expr:'#E6CF00',pers:'#E10600','':'#C9D1D8'};
+
+/* ---------- período ---------- */
+function range(){const h=iso(new Date());
+ if(S.per==='hoje')return[h,h];if(S.per==='ontem'){const o=addD(h,-1);return[o,o]}
+ if(S.per==='7')return[addD(h,-6),h];if(S.per==='30')return[addD(h,-29),h];return[S.ini||h,S.fim||h]}
+
+/* ---------- carga de dados ---------- */
+async function fetchAll(build){const out=[];for(let f=0;;f+=1000){const d=await q(build().range(f,f+999));out.push(...d);if(d.length<1000)break}return out}
+async function loadData(){
+ document.body.classList.add('loading');
+ const [ini,fim]=range();
+ const fx=await fetchAll(()=>sb.from('faixas').select('id,data,tipo,motorista,placa,veiculo,titulo,evento').gte('data',addD(ini,-15)).lte('data',fim));
+ const fxi=new Map(fx.map(f=>[f.id,f]));const inP=fx.filter(f=>f.data>=ini),before=fx.filter(f=>f.data<ini);
+ const rows=[];for(let i=0;i<inP.length;i+=120){const ids=inP.slice(i,i+120).map(f=>f.id);rows.push(...await fetchAll(()=>sb.from('cargas').select('*').in('faixa_id',ids).eq('excluida',false).eq('nota',false)))}
+ const prev=[];for(let i=0;i<before.length;i+=150){const ids=before.slice(i,i+150).map(f=>f.id);prev.push(...await fetchAll(()=>sb.from('cargas').select('faixa_id,nf,dest,col').in('faixa_id',ids).eq('excluida',false).eq('nota',false)))}
+ // dias anteriores em que cada carga (NF + destinatário) apareceu
+ const seen=new Map();const add=(k,d)=>{if(!k)return;if(!seen.has(k))seen.set(k,new Set());seen.get(k).add(d)};
+ prev.forEach(r=>add(ckey(r),fxi.get(r.faixa_id)?.data));rows.forEach(r=>add(ckey(r),fxi.get(r.faixa_id)?.data));
+ // situação final no período: cada carga conta uma vez (a linha do dia mais recente)
+ const best=new Map();
+ for(const r of rows){const f=fxi.get(r.faixa_id);if(!f)continue;r._f=f;r._dia=f.data;const k=ckey(r)||('id:'+r.id);r._key=k;
+  const ds=[...(seen.get(k)||[])].filter(d=>d<=f.data).sort();r._first=ds[0]||f.data;r._ndias=ds.length||1;
+  const b=best.get(k);if(!b||b._dia<f.data)best.set(k,r)}
+ S.rows=[...best.values()].filter(r=>r.status!=='Cancelado');S.range=[ini,fim];
+ document.body.classList.remove('loading');render();
+}
+async function loadInv(){
+ try{const r=await fetch(INV_URL,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const val=await r.json()||{};
+  const idx=new Map();for(const it of Object.values(val)){if(!it||!it.nf)continue;for(const n of nfList(it.nf)){const a=idx.get(n)||[];a.push(it);idx.set(n,a)}}
+  for(const a of idx.values())a.sort((x,y)=>(y.ts||0)-(x.ts||0));
+  S.inv=idx;S.invTs=Date.now();S.invErr=null}
+ catch(e){S.invErr=e.message}
+ const t=$('invTxt'),d=$('invDot');if(S.invErr){t.textContent='Inventário indisponível';d.className='dot bad';t.title=S.invErr}
+ else{t.textContent=`Inventário · ${n0(S.inv.size)} NFs lidas · ${new Date(S.invTs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;d.className='dot on'}
+ render()}
+const invOf=r=>{if(!S.inv)return null;const nfs=nfList(r.nf);if(!nfs.length)return{st:'semnf'};let best=null;for(const n of nfs){const a=S.inv.get(n);if(a&&(!best||(a[0].ts||0)>(best.ts||0)))best=a[0]}return best?{st:'lido',it:best}:{st:'nao'}};
+
+/* ---------- classificação ---------- */
+const carregada=r=>r._f.tipo==='veiculo'&&!['Não realizado','Reprogramado'].includes(r.status);
+function motivoR(r){if(r.status==='Não realizado')return'Não realizado';if(r.status==='Reprogramado')return'Reprogramado';if(r._f.tipo!=='veiculo')return'Sem veículo';return r.status}
+const MOTC={'Sem veículo':'#A8B3BD','Reprogramado':'#6A4BA0','Não realizado':'#C0392B'};
+function idade(r){return r._ndias>=4?'4 dias ou mais':r._ndias===3?'3º dia':r._ndias===2?'2º dia':'1º dia'}
+const IDC={'1º dia':'#8FB3E3','2º dia':'#E8A55C','3º dia':'#E8611A','4 dias ou mais':'#C0392B'};
+function vis(){const resp=S.mode==='livre'?S.resp:norm(S.me.nome_programacao);return S.rows.filter(r=>!resp||norm(r.resp)===norm(resp))}
+function sums(rs){return{n:rs.length,vol:rs.reduce((a,r)=>a+num(r.vol),0),peso:rs.reduce((a,r)=>a+num(r.peso),0),val:rs.reduce((a,r)=>a+num(r.valor),0)}}
+const laneName=f=>f.tipo==='veiculo'?`${f.motorista||'sem motorista'} · ${f.placa||'sem placa'}`:(f.titulo||'Seção');
+
+/* ---------- componentes visuais ---------- */
+function donut(segs,side,dim){const tot=segs.reduce((a,s)=>a+s.v,0)||1,R=46,r=30,C=56;let a0=-Math.PI/2;
+ const arcs=segs.filter(s=>s.v>0).map(s=>{const a1=a0+2*Math.PI*s.v/tot,large=a1-a0>Math.PI?1:0,p=(rad,ang)=>[C+rad*Math.cos(ang),C+rad*Math.sin(ang)];
+  const [x0,y0]=p(R,a0),[x1,y1]=p(R,a1-1e-6),[x2,y2]=p(r,a1-1e-6),[x3,y3]=p(r,a0);a0=a1;
+  return `<path d="M${x0} ${y0}A${R} ${R} 0 ${large} 1 ${x1} ${y1}L${x2} ${y2}A${r} ${r} 0 ${large} 0 ${x3} ${y3}Z" fill="${s.c}" data-f="${side}|${dim}|${esc(s.k)}"><title>${esc(s.l)}: ${s.v} (${pct(s.v,tot)}%)</title></path>`}).join('');
+ return `<div class="donut"><svg width="112" height="112" viewBox="0 0 112 112">${arcs||`<circle cx="56" cy="56" r="38" fill="none" stroke="#E8ECEF" stroke-width="16"/>`}<text x="56" y="54" text-anchor="middle" font-family="Barlow Condensed" font-weight="800" font-size="22" fill="#16222E">${segs.reduce((a,s)=>a+s.v,0)}</text><text x="56" y="69" text-anchor="middle" font-size="9" fill="#5F6E7B">NFs</text></svg>
+  <div class="leg">${segs.filter(s=>s.v>0).map(s=>`<div data-f="${side}|${dim}|${esc(s.k)}"><i style="background:${s.c}"></i><span>${esc(s.l)}</span><b>${s.v}</b></div>`).join('')||'<div style="color:var(--muted)">—</div>'}</div></div>`}
+function bars(items,side,dim,max=8){const mx=Math.max(1,...items.map(i=>i.v));const f=side==='L'?S.fL:S.fR;
+ return `<div class="bars">${items.slice(0,max).map(i=>`<div class="bar ${f&&f.dim===dim&&f.k===i.k?'sel':''}" data-f="${side}|${dim}|${esc(i.k)}" title="${esc(i.t||i.l)}"><span class="nm">${i.h||esc(i.l)}</span><span class="tr"><i style="width:${Math.max(3,i.v/mx*100)}%;background:${i.c||'var(--navy)'}"></i></span><b>${i.lab||i.v}</b></div>`).join('')||'<div style="color:var(--muted);font-size:12.5px">—</div>'}${items.length>max?`<div style="font-size:11.5px;color:var(--muted)">+ ${items.length-max} outros</div>`:''}</div>`}
+function groupBy(rs,fn){const m=new Map();rs.forEach(r=>{const k=fn(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});return m}
+function tiles(s){return `<div class="tiles"><div class="tile"><div class="l">NFs</div><div class="v">${n0(s.n)}</div></div><div class="tile"><div class="l">Volumes</div><div class="v">${n0(s.vol)}</div></div><div class="tile"><div class="l">Peso</div><div class="v">${kg(s.peso)}</div></div><div class="tile"><div class="l">Valor</div><div class="v">${brlK(s.val)}</div></div></div>`}
+const stTag=s=>{const c={'OK':'t-ok','Em rota':'t-rota','Programado':'t-rota','Ocorrência':'t-oc','Não realizado':'t-no','Reprogramado':'t-age'}[s]||'t-gr';return `<span class="tag ${c}">${esc(s)}</span>`};
+const servTag=v=>{const k=servK(v);return k?`<span class="sv sv-${k}">${esc(v)}</span>`:''};
+const brTag=r=>{const s=r.brudam_situacao;if(!s)return'';const [l]=BRC[s]||['?'];return `<span class="tag ${s==='entregue'?'t-ok':s==='parcial'?'t-oc':s==='nao_entregue'?'t-no':'t-rota'}">Brudam: ${l}</span>`};
+function invTag(r){const v=invOf(r);if(!v)return'<span class="tag t-gr">inventário…</span>';if(v.st==='semnf')return'<span class="tag t-gr">sem NF</span>';
+ if(v.st==='nao')return'<span class="tag t-invno">⚠ não localizada no pátio</span>';
+ const it=v.it;return `<span class="tag t-inv" title="Lida por ${esc(it.operador||'?')} em ${new Date(it.ts).toLocaleString('pt-BR')}">📦 no pátio${it.end?' · '+esc(it.end):''}</span>`}
+
+/* ---------- filtros (drill-down) ---------- */
+const DIMS={st:{l:'Status',fn:r=>r.status},br:{l:'Baixa Brudam',fn:r=>r.brudam_situacao||''},vei:{l:'Veículo',fn:r=>r._f.id},fro:{l:'Frota',fn:r=>frotaOf(r._f.placa)},sv:{l:'Serviço',fn:r=>servK(r.serv)},
+ mot:{l:'Motivo',fn:motivoR},ida:{l:'Tempo na programação',fn:idade},inv:{l:'Inventário',fn:r=>invOf(r)?.st||'?'},cid:{l:'Destino',fn:r=>norm(String(r.cidade||'').split(/[\/\-–,]/)[0])||'(sem cidade)'},sec:{l:'Agrupamento',fn:r=>r._f.id}};
+const INVN={lido:'No pátio',nao:'Não localizada no pátio',semnf:'Sem NF'};
+function applyF(rs,f,qq){if(f)rs=rs.filter(r=>String(DIMS[f.dim].fn(r))===String(f.k));if(qq){const t=norm(qq);rs=rs.filter(r=>norm([r.dest,r.nf,r.cidade,r.col,r.resp,r._f.motorista,r._f.placa,r._f.titulo].join(' ')).includes(t))}return rs}
+function fLabel(f){if(!f)return'';const d=DIMS[f.dim];let v=f.k;if(f.dim==='vei'||f.dim==='sec'){const r=S.rows.find(x=>x._f.id===f.k);v=r?laneName(r._f):'?'}
+ else if(f.dim==='br')v=(BRC[f.k]||[f.k])[0];else if(f.dim==='fro')v=FROTA[f.k]?.[0]||f.k;else if(f.dim==='sv')v=SERVN[f.k];else if(f.dim==='inv')v=INVN[f.k]||f.k;return `${d.l}: ${v}`}
+
+/* ---------- render ---------- */
+function render(){
+ if(!S.me)return;const all=vis(),L=all.filter(carregada),R=all.filter(r=>!carregada(r)),sA=sums(all),sL=sums(L),sR=sums(R);
+ const ent=L.filter(r=>r.brudam_situacao==='entregue').length,invR=R.filter(r=>invOf(r)?.st==='lido').length,invN=R.filter(r=>invOf(r)?.st==='nao').length;
+ const [ini,fim]=S.range;
+ $('hero').innerHTML=`
+  <div class="hk"><div class="l">Cargas no período</div><div class="v">${n0(sA.n)}</div><div class="s">${ini===fim?dayLabel(ini):dayLabel(ini)+' a '+dayLabel(fim)} · ${brlK(sA.val)} · ${kg(sA.peso)}</div></div>
+  <div class="hk"><div class="l">Carregadas</div><div class="v">${pct(sL.n,sA.n)}%</div><div class="s">${n0(sL.n)} NFs · ${brlK(sL.val)}</div><div class="meter" style="width:${pct(sL.n,sA.n)}%"></div></div>
+  <div class="hk or"><div class="l">Indefinidas / não carregadas</div><div class="v">${pct(sR.n,sA.n)}%</div><div class="s">${n0(sR.n)} NFs · ${brlK(sR.val)}</div><div class="meter" style="width:${pct(sR.n,sA.n)}%"></div></div>
+  <div class="hk ok"><div class="l">Entregues (baixa Brudam)</div><div class="v">${pct(ent,sL.n)}%</div><div class="s">${n0(ent)} de ${n0(sL.n)} carregadas</div><div class="meter" style="width:${pct(ent,sL.n)}%"></div></div>
+  <div class="hk"><div class="l">Indefinidas no pátio</div><div class="v">${S.inv?pct(invR,R.length)+'%':'…'}</div><div class="s">${n0(invR)} no pátio · <b style="color:var(--risk)">${n0(invN)} não localizadas</b></div><div class="meter" style="width:${pct(invR,R.length)}%;background:var(--ok)"></div></div>`;
+
+ // ---- ESQUERDA: carregadas
+ const stL=[...groupBy(L,r=>r.status)].map(([k,rs])=>({k,l:k,v:rs.length,c:STC[k]||'#999'})).sort((a,b)=>b.v-a.v);
+ const brL=['entregue','parcial','nao_entregue','manifestada','ocorrencia',''].map(k=>({k,l:BRC[k][0],v:L.filter(r=>(r.brudam_situacao||'')===k).length,c:BRC[k][1]}));
+ const veL=[...groupBy(L,r=>r._f.id)].map(([k,rs])=>{const f=rs[0]._f,fo=frotaOf(f.placa),p=extractPlates(f.placa)[0]||'';return{k,v:rs.length,l:laneName(f),h:`${p?`<span class="pt ${FROTA[fo][1]}">${p}</span>`:''}${esc(f.motorista||'—')}`,c:FROTA[fo][2],lab:`${rs.length} · ${kg(sums(rs).peso)}`}}).sort((a,b)=>b.v-a.v);
+ const frL=['frota','agregado','terceiro'].map(k=>({k,l:FROTA[k][0],v:L.filter(r=>frotaOf(r._f.placa)===k).length,c:FROTA[k][2]}));
+ const svL=['econ','expr','pers',''].map(k=>({k,l:SERVN[k],v:L.filter(r=>servK(r.serv)===k).length,c:SERVC[k]}));
+ const fl=applyF(L,S.fL,S.qL);
+ $('pL').innerHTML=`<div class="ph"><h2>Carregadas</h2><span class="n">${n0(L.length)}</span></div>${tiles(sL)}
+  <div class="grid2"><div class="card"><h3>Status na programação</h3>${donut(stL,'L','st')}</div><div class="card"><h3>Baixa do motorista (Brudam)</h3>${donut(brL,'L','br')}</div></div>
+  <div class="grid2"><div class="card"><h3>Por veículo</h3>${bars(veL,'L','vei')}</div><div class="card"><h3>Tipo de frota</h3>${bars(frL,'L','fro')}<h3 style="margin-top:12px">Serviço</h3>${bars(svL,'L','sv')}</div></div>
+  <div class="filters">${S.fL?`<span class="fc">${esc(fLabel(S.fL))}<button data-clr="L">×</button></span>`:'<span style="color:var(--muted);font-size:12px">Clique num gráfico para filtrar a lista</span>'}<input id="qL" placeholder="Buscar NF, destinatário, cidade…" value="${esc(S.qL)}"></div>
+  <div class="list">${listL(fl)}</div>`;
+
+ // ---- DIREITA: indefinidas / não carregadas
+ const moR=[...groupBy(R,motivoR)].map(([k,rs])=>({k,l:k,v:rs.length,c:MOTC[k]||STC[k]||'#999'})).sort((a,b)=>b.v-a.v);
+ const idR=['1º dia','2º dia','3º dia','4 dias ou mais'].map(k=>({k,l:k,v:R.filter(r=>idade(r)===k).length,c:IDC[k]}));
+ const ciR=[...groupBy(R,DIMS.cid.fn)].map(([k,rs])=>({k,l:rs[0].cidade||'(sem cidade)',v:rs.length,c:'#E8611A',lab:`${rs.length} · ${kg(sums(rs).peso)}`})).sort((a,b)=>b.v-a.v);
+ const semNF=R.filter(r=>invOf(r)?.st==='semnf').length;
+ const fr=applyF(R,S.fR,S.qR),fsel=k=>S.fR&&S.fR.dim==='inv'&&S.fR.k===k?'sel':'';
+ $('pR').innerHTML=`<div class="ph"><h2>Indefinidas e não carregadas</h2><span class="n">${n0(R.length)}</span></div>${tiles(sR)}
+  <div class="card" style="border-bottom:1px solid var(--line2)"><h3>Verificação no inventário do pátio</h3>
+   ${S.invErr?`<div style="color:var(--risk);font-size:12.5px">Não consegui ler o inventário: ${esc(S.invErr)}</div>`:!S.inv?'<div style="color:var(--muted)">Carregando inventário…</div>':`
+   <div class="inv"><div class="ib ok ${fsel('lido')}" data-f="R|inv|lido"><div class="v">${n0(invR)}</div><div class="l">📦 No pátio (lidas no inventário)</div></div>
+    <div class="ib no ${fsel('nao')}" data-f="R|inv|nao"><div class="v">${n0(invN)}</div><div class="l">⚠ Não localizadas no pátio</div></div>
+    <div class="ib nn ${fsel('semnf')}" data-f="R|inv|semnf"><div class="v">${n0(semNF)}</div><div class="l">Sem NF para conferir</div></div></div>
+   <div class="stack"><i style="width:${pct(invR,R.length)}%;background:var(--ok)"></i><i style="width:${pct(invN,R.length)}%;background:var(--risk)"></i><i style="width:${pct(semNF,R.length)}%;background:#C9D1D8"></i></div>`}</div>
+  <div class="grid2"><div class="card"><h3>Motivo</h3>${donut(moR,'R','mot')}</div><div class="card"><h3>Tempo na programação</h3>${bars(idR,'R','ida',4)}</div></div>
+  <div class="card" style="border-bottom:1px solid var(--line2)"><h3>Por destino</h3>${bars(ciR,'R','cid',8)}</div>
+  <div class="filters">${S.fR?`<span class="fc">${esc(fLabel(S.fR))}<button data-clr="R">×</button></span>`:'<span style="color:var(--muted);font-size:12px">Clique num gráfico para filtrar a lista</span>'}<input id="qR" placeholder="Buscar NF, destinatário, cidade…" value="${esc(S.qR)}"></div>
+  <div class="list">${listR(fr)}</div>`;
+ const keep=document.activeElement?.id;$('qL').oninput=e=>{S.qL=e.target.value;render();$('qL').focus();$('qL').setSelectionRange(99,99)};$('qR').oninput=e=>{S.qR=e.target.value;render();$('qR').focus();$('qR').setSelectionRange(99,99)};
+ $('nota').textContent=`Cada carga conta uma vez no período (situação do dia mais recente em que aparece). "Carregadas" = em veículo e sem status Reprogramado/Não realizado. "No pátio" = NF lida no módulo de Inventário. ${S.mode!=='livre'?'Você está vendo só as cargas em que é o responsável.':''}`;
+}
+function item(r,extra){return `<div class="it" data-id="${r.id}"><div class="a">${esc(r.dest||r.col||'—')}</div><div class="c">${extra}</div>
+ <div class="b">${r.nf?'NF '+esc(String(r.nf).slice(0,24))+' · ':''}${esc(r.cidade||'')} · ${n0(num(r.vol))} vol · ${kg(num(r.peso))}${r.resp?' · '+esc(r.resp):''} ${servTag(r.serv)}</div></div>`}
+function listL(rs){if(!rs.length)return'<div class="empty">Nenhuma carga.</div>';
+ return [...groupBy(rs,r=>r._f.id)].sort((a,b)=>b[1].length-a[1].length).map(([k,g])=>{const f=g[0]._f,fo=frotaOf(f.placa),s=sums(g);
+  return `<div class="gh"><span class="pt ${FROTA[fo][1]}">${esc(extractPlates(f.placa)[0]||'—')}</span><b>${esc(f.motorista||'sem motorista')}</b> · ${dayLabel(f.data)}<span class="st">${g.length} NF · ${kg(s.peso)} · ${brlK(s.val)}</span></div>`+
+   g.map(r=>item(r,`${stTag(r.status)}${brTag(r)}`)).join('')}).join('')}
+function listR(rs){if(!rs.length)return'<div class="empty">Nenhuma carga indefinida. 👏</div>';
+ return [...groupBy(rs,motivoR)].map(([k,g])=>`<div class="gh"><b>${esc(k)}</b><span class="st">${g.length} NF · ${kg(sums(g).peso)}</span></div>`+
+  g.sort((a,b)=>b._ndias-a._ndias).map(r=>item(r,`${invTag(r)}${r._ndias>1?`<span class="tag t-age">${r._ndias}º dia · desde ${dayLabel(r._first)}</span>`:''}`)).join('')).join('')}
+
+/* ---------- detalhe ---------- */
+function openItem(id){const r=S.rows.find(x=>x.id===id);if(!r)return;const f=r._f,v=invOf(r),i=r.brudam_info||{};
+ const lst=v&&v.st==='lido'?[...new Set(nfList(r.nf))].flatMap(n=>S.inv.get(n)||[]).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,8):[];
+ $('dT').innerHTML=`${esc(r.dest||r.col||'Carga')}<p>${r.nf?'NF '+esc(r.nf)+' · ':''}${dayLabel(f.data)} · ${esc(laneName(f))}</p>`;
+ $('dB').innerHTML=`<dl class="kv"><dt>Status</dt><dd>${stTag(r.status)} ${brTag(r)}</dd><dt>Cliente / processo</dt><dd>${esc(r.col||'—')}</dd><dt>Destino</dt><dd>${esc(r.cidade||'—')}</dd>
+  <dt>Volumes / peso</dt><dd>${n0(num(r.vol))} vol · ${kg(num(r.peso))}</dd><dt>Valor</dt><dd>${brl(num(r.valor))}</dd><dt>Serviço</dt><dd>${servTag(r.serv)||'—'}</dd><dt>Responsável</dt><dd>${esc(r.resp||'—')}</dd>
+  <dt>Na programação</dt><dd>${r._ndias>1?`${r._ndias}º dia (desde ${dayLabel(r._first)})`:'1º dia'}</dd>${r.obs?`<dt>Observação</dt><dd>${esc(r.obs)}</dd>`:''}</dl>
+  ${!carregada(r)?(v&&v.st==='lido'?`<div class="box ok"><h4>📦 Está no pátio (inventário)</h4>${lst.map(it=>`<div style="font-size:12.5px">${new Date(it.ts).toLocaleString('pt-BR')} · <b>${esc(it.operador||'?')}</b>${it.end?' · endereço <b>'+esc(it.end)+'</b>':''}${it.vol?' · '+esc(it.vol)+' vol':''}${it.obs?' · '+esc(it.obs):''}</div>`).join('')}</div>`
+   :v&&v.st==='nao'?`<div class="box no"><h4>⚠ Não localizada no inventário do pátio</h4><div style="font-size:12.5px">Nenhuma leitura desta NF no módulo de Inventário. Confira se a carga chegou, se saiu em outro veículo ou se falta a leitura.</div></div>`:''):''}
+  ${r.brudam_situacao?`<div class="box"><h4>Brudam ${esc(i.sistema||'')}: ${esc(i.descricao||'')}</h4><div style="font-size:12.5px">${i.manifesto?'Manifesto '+esc(i.manifesto)+' · ':''}${esc(i.placa||'')} ${esc(i.motorista||'')}${i.recebedor?'<br>Recebido por <b>'+esc(i.recebedor)+'</b>'+(i.data_entrega?' em '+esc(i.data_entrega):''):''}${i.obs?'<br>Obs.: '+esc(i.obs):''}</div>${i.comprovante?`<div style="margin-top:6px"><a class="btn" href="${esc(i.comprovante)}" target="_blank" rel="noopener">📷 Comprovante</a></div>`:''}</div>`:''}`;
+ $('dF').innerHTML=`<a class="btn pri" href="./?dia=${f.data}&carga=${r.id}" target="_blank" rel="noopener">Abrir na Programação ↗</a><button class="btn" id="dClose">Fechar</button>`;
+ $('drawer').classList.add('on');$('scrim').classList.add('on');$('dClose').onclick=closeD}
+const closeD=()=>{$('drawer').classList.remove('on');$('scrim').classList.remove('on')};
+
+/* ---------- eventos ---------- */
+document.addEventListener('click',e=>{
+ const f=e.target.closest('[data-f]');if(f){const [side,dim,k]=f.dataset.f.split('|');const cur=side==='L'?S.fL:S.fR,nf=cur&&cur.dim===dim&&cur.k===k?null:{dim,k};side==='L'?S.fL=nf:S.fR=nf;render();return}
+ const c=e.target.closest('[data-clr]');if(c){c.dataset.clr==='L'?S.fL=null:S.fR=null;render();return}
+ const it=e.target.closest('.it');if(it){openItem(it.dataset.id);return}
+ const p=e.target.closest('#per button');if(p){S.per=p.dataset.p;document.querySelectorAll('#per button').forEach(b=>b.classList.toggle('on',b===p));$('custom').style.display=S.per==='custom'?'inline-flex':'none';if(S.per!=='custom')loadData()}});
+$('dX').onclick=closeD;$('scrim').onclick=closeD;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeD()});
+$('dIni').onchange=$('dFim').onchange=()=>{S.ini=$('dIni').value;S.fim=$('dFim').value||S.ini;if(S.ini)loadData()};
+$('resp').onchange=e=>{S.resp=e.target.value;S.fL=S.fR=null;render()};
+
+/* ---------- início ---------- */
+let rT=null;
+async function start(){
+ const{data:{session}}=await sb.auth.getSession();
+ const block=h=>{$('blocked').style.display='grid';$('blocked').innerHTML=h};
+ if(!session)return block('<div><b>Entre primeiro no sistema de Programação.</b><br><br><a class="btn pri" href="./">Ir para o login</a></div>');
+ const email=(session.user.email||'').toLowerCase();
+ const [us,pe,pl]=await Promise.all([q(sb.from('usuarios').select('*').eq('email',email)),q(sb.from('permissoes').select('*')),q(sb.from('placas').select('*')).catch(()=>[])]);
+ S.me=us.find(u=>u.ativo);if(!S.me)return block('<div><b>Usuário sem cadastro ativo.</b></div>');
+ pe.forEach(x=>(S.perms[x.perfil_id]=S.perms[x.perfil_id]||{})[x.acao_id]=x.modo);S.placas=pl;
+ const m=(S.perms[S.me.perfil_id]||{}).kpi||'bloq';S.mode=m==='livre'?'livre':m==='bloq'?'bloq':'proprias';
+ if(S.mode==='bloq')return block('<div><b>Acesso ao KPI não liberado para o seu perfil.</b><br>A liberação é feita em Cadastros › Perfis e permissões ("Ver o módulo de KPI").<br><br><a class="btn" href="./">← Voltar</a></div>');
+ if(S.mode==='proprias'&&!S.me.nome_programacao)return block('<div><b>Seu cadastro não tem "Nome na programação".</b><br>Sem ele não dá para saber quais são as suas cargas. Peça para preencher em Cadastros.</div>');
+ $('who').textContent=S.me.nome+(S.mode==='livre'?' · visão geral':' · minhas cargas');
+ if(S.mode==='livre'){const nomes=[...new Set((await q(sb.from('usuarios').select('nome_programacao').eq('ativo',true))).map(u=>u.nome_programacao).filter(Boolean))].sort();
+  $('resp').innerHTML='<option value="">Todos os responsáveis</option>'+nomes.map(n=>`<option>${esc(n)}</option>`).join('')}
+ else{$('resp').innerHTML=`<option>${esc(S.me.nome_programacao)}</option>`;$('resp').disabled=true}
+ document.querySelector('#per button[data-p="hoje"]').classList.add('on');
+ $('main').style.display='';await loadData();loadInv();setInterval(loadInv,120000);
+ sb.channel('kpi').on('postgres_changes',{event:'*',schema:'public',table:'cargas'},()=>{clearTimeout(rT);rT=setTimeout(loadData,3000)}).subscribe(s=>$('live').classList.toggle('on',s==='SUBSCRIBED'));
+}
+start().catch(e=>{$('blocked').style.display='grid';$('blocked').innerHTML='<div><b>Erro ao carregar</b><br>'+esc(e.message||e)+'</div>'});
+})();
+</script>
+</body>
+</html>
