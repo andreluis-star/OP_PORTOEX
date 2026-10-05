@@ -115,6 +115,8 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
 .mu{color:var(--muted);font-size:11.5px}.vias{font-size:11.5px;color:var(--navy);margin-top:2px}.vias span{color:var(--muted)}
 .cg2{margin-bottom:2px}details{margin-top:4px;font-size:11.5px}details ol{margin:4px 0;padding-left:18px;max-height:220px;overflow:auto}details li span{color:var(--muted)}
 @media print{body>*:not(#mRot){display:none!important}#mRot{position:static;display:block!important;background:none}.rcard{width:100%;max-height:none;box-shadow:none;border:none}.rtab{overflow:visible;border:none}.noprint{display:none!important}}
+.mv{border:1px solid var(--line);border-radius:4px;font-size:11.5px;padding:1px 3px;max-width:190px;background:#fff}
+.cr .ln a{color:var(--risk);text-decoration:none;font-weight:600}
 .toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:3000;background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;display:none;max-width:90vw}
 .toast.on{display:block}.toast.bad{background:var(--risk)}
 .block{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}
@@ -157,6 +159,7 @@ aside{background:var(--surface);border-right:1px solid var(--line);display:flex;
   <div id="map"></div>
   <div class="tools">
    <button class="tbtn" id="btnLasso" title="Desenhe em volta dos destinos (atalho: L)">✏️ Laço</button>
+   <label style="display:flex;gap:4px;align-items:center;font-size:12px;padding:0 4px" title="Com esta opção, o laço e o clique também pegam cargas que já estão em veículos (para trocar de veículo ou excluir a alocação)"><input type="checkbox" id="lassoAll"> incluir alocadas</label>
    <button class="tbtn" id="btnClear" title="Limpar seleção (Esc)">Limpar seleção</button>
    <button class="tbtn" id="btnFit" title="Enquadrar todos os destinos">Enquadrar</button>
   </div>
@@ -244,7 +247,7 @@ async function loadDay(){
  const rows=ids.length?await q(sb.from('cargas').select('*').in('faixa_id',ids).eq('excluida',false).eq('nota',false).range(0,4999)):[];
  S.lanes=lanes;S.rows=Object.fromEntries(rows.map(r=>[r.id,r]));
  if(!laneById(S.active)||laneById(S.active).tipo!=='veiculo')S.active=null;
- S.sel=new Set([...S.sel].filter(id=>S.rows[id]&&laneById(S.rows[id].faixa_id)?.tipo!=='veiculo'));
+ S.sel=new Set([...S.sel].filter(id=>S.rows[id]));
 }
 const isFree=r=>laneById(r.faixa_id)?.tipo!=='veiculo';
 const vehicles=()=>S.lanes.filter(l=>l.tipo==='veiculo').sort((a,b)=>depart(a).localeCompare(depart(b))||(a.ordem-b.ordem));
@@ -316,9 +319,9 @@ function initMap(){
  cont.addEventListener('mousedown',e=>{if(!lassoOn||e.button!==0)return;e.preventDefault();pts=[map.mouseEventToLatLng(e)];line=L.polyline(pts,{color:'#14A44D',weight:3,dashArray:'6 6'}).addTo(map)});
  window.addEventListener('mousemove',e=>{if(!pts)return;pts.push(map.mouseEventToLatLng(e));line.setLatLngs(pts)});
  window.addEventListener('mouseup',()=>{if(!pts)return;const poly=pts;pts=null;map.removeLayer(line);line=null;if(poly.length<4)return;
-  const {list}=cities();let n=0;for(const c of list){if(inPoly({lat:c.m.lat,lng:c.m.lon},poly)){c.free.forEach(r=>{S.sel.add(r.id);n++})}}
+  const {list}=cities();let n=0;for(const c of list){if(inPoly({lat:c.m.lat,lng:c.m.lon},poly)){(lassoAllOn()?[...c.free,...c.act,...c.oth]:c.free).forEach(r=>{S.sel.add(r.id);n++})}}
   const shape=L.polygon(poly,{color:'#14A44D',weight:2,fillOpacity:.08}).addTo(map);setTimeout(()=>map.removeLayer(shape),900);
-  toast(n?`${n} carga(s) sem veículo adicionadas à seleção`:'Nenhuma carga sem veículo dentro do laço');renderAll(false)});
+  toast(n?`${n} carga(s) adicionadas à seleção`:'Nenhuma carga dentro do laço');renderAll(false)});
 }
 function inPoly(p,poly){let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];
  if(((a.lng>p.lng)!==(b.lng>p.lng))&&(p.lat<(b.lat-a.lat)*(p.lng-a.lng)/(b.lng-a.lng)+a.lat))ins=!ins}return ins}
@@ -330,7 +333,7 @@ function renderMap(fit){
   const segs=[];if(c.free.length)segs.push(['#E8611A',c.free.length]);const byV={};[...c.act,...c.oth].forEach(r=>byV[r.faixa_id]=(byV[r.faixa_id]||0)+1);
   Object.entries(byV).sort((a,b)=>b[1]-a[1]).forEach(([id,n])=>segs.push([colorOf(id),n]));
   const totN=segs.reduce((a,x)=>a+x[1],0);let acc=0;const grad=segs.length===1?segs[0][0]:`conic-gradient(${segs.map(([col,n])=>{const a0=acc/totN*100;acc+=n;return `${col} ${a0}% ${acc/totN*100}%`}).join(',')})`;
-  const selN=c.free.filter(r=>S.sel.has(r.id)).length,label=c.free.length?c.free.length:totN;
+  const selN=[...c.free,...c.act,...c.oth].filter(r=>S.sel.has(r.id)).length,label=c.free.length?c.free.length:totN;
   const ic=L.divIcon({className:'',html:`<div class="pin ${selN?'sel':''} ${c.act.length?'ring':''}" style="width:${size}px;height:${size}px;background:${grad};color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)">${label}</div>`,iconSize:[size,size],iconAnchor:[size/2,size/2]});
   const mk=L.marker([c.m.lat,c.m.lon],{icon:ic,riseOnHover:true}).addTo(layer);
   const oth=Object.entries([...c.act,...c.oth].reduce((m,r)=>{m[r.faixa_id]=(m[r.faixa_id]||[]);m[r.faixa_id].push(r);return m},{})).map(([id,rs])=>`<span style="color:${colorOf(id)}">●</span> ${esc(laneName(laneById(id)))}: ${rs.length} NF · ${kg(sum(rs,'peso'))}`);
@@ -344,7 +347,10 @@ function renderMap(fit){
  if(SIM.data&&SIM.data.geometria?.length&&S.sel.size)L.polyline(SIM.data.geometria,{color:'#14A44D',weight:4,opacity:.9,dashArray:'8 6',interactive:false}).addTo(layer);
  if(fit){const b=list.map(c=>[c.m.lat,c.m.lon]);b.push([ORIGEM.lat,ORIGEM.lon]);if(b.length>1)map.fitBounds(b,{padding:[40,40],maxZoom:9})}
 }
-function toggleCity(c){const ids=c.free.map(r=>r.id);if(!ids.length)return toast('Esta cidade não tem cargas sem veículo');const all=ids.every(i=>S.sel.has(i));ids.forEach(i=>all?S.sel.delete(i):S.sel.add(i));renderAll(false)}
+const pendLane=()=>S.lanes.find(l=>l.tipo==='secao'&&/^em defini/i.test(l.titulo||''))||S.lanes.find(l=>l.tipo==='secao');
+const mvOpts=(cur)=>`<option value="">mover para…</option>${vehicles().filter(v=>v.id!==cur).map(v=>`<option value="${v.id}">${esc(laneName(v))}</option>`).join('')}<option value="__pend">↩ voltar para pendentes</option>`;
+const lassoAllOn=()=>!!$('lassoAll')?.checked;
+function toggleCity(c){const ids=(lassoAllOn()?[...c.free,...c.act,...c.oth]:c.free).map(r=>r.id);if(!ids.length)return toast('Esta cidade não tem cargas sem veículo (marque "incluir alocadas" para pegar as de veículos)');const all=ids.every(i=>S.sel.has(i));ids.forEach(i=>all?S.sel.delete(i):S.sel.add(i));renderAll(false)}
 
 /* ---------- lista ---------- */
 function renderList(){
@@ -352,10 +358,10 @@ function renderList(){
  const free=list.filter(c=>c.free.length),actC=list.filter(c=>c.act.length),oth=list.filter(c=>c.oth.length);
  if($('mode').value==='veh')free.length=0;
  const sortF=a=>{const d=c=>kmOf(c)??dist(ORIGEM,{lat:c.m.lat,lon:c.m.lon})*1.3;return ord==='dist'?a.sort((x,y)=>d(x)-d(y)):ord==='peso'?a.sort((x,y)=>sum(y.free.concat(y.act),'peso')-sum(x.free.concat(x.act),'peso')):a.sort((x,y)=>x.m.uf.localeCompare(y.m.uf)||x.m.nome.localeCompare(y.m.nome))};
- const crow=(r,withLane)=>`<div class="cr"><input type="checkbox" data-c="${r.id}" ${S.sel.has(r.id)?'checked':''} ${isFree(r)?'':'disabled'}><span class="d" title="${esc(r.dest)}">${r.prioridade?`<span class="pb ${r.prioridade}">${PRIO[r.prioridade]}</span>`:''}${esc(r.dest||r.col||'—')}</span><span class="m">${r.nf?'NF '+esc(String(r.nf).slice(0,14))+' · ':''}${kg(num(r.peso))} · ${num(r.vol)} vol</span>${withLane?`<span class="ln">${esc(laneName(laneById(r.faixa_id)))}${r.faixa_id===S.active&&decide('mover',r)!=='deny'?` · <a href="#" data-rm="${r.id}">tirar da placa</a>`:''}</span>`:''}</div>`;
+ const crow=(r,withLane)=>`<div class="cr"><input type="checkbox" data-c="${r.id}" ${S.sel.has(r.id)?'checked':''}><span class="d" title="${esc(r.dest)}">${r.prioridade?`<span class="pb ${r.prioridade}">${PRIO[r.prioridade]}</span>`:''}${esc(r.dest||r.col||'—')}</span><span class="m">${r.nf?'NF '+esc(String(r.nf).slice(0,14))+' · ':''}${kg(num(r.peso))} · ${num(r.vol)} vol</span>${withLane?`<span class="ln">${decide('mover',r)!=='deny'?`<select class="mv" data-mv="${r.id}" title="Mudar esta carga de veículo">${mvOpts(r.faixa_id)}</select> <a href="#" data-rm="${r.id}" title="Excluir a alocação: a carga volta para pendentes">✕ excluir alocação</a>`:`<span>${esc(laneName(laneById(r.faixa_id)))}</span>`}</span>`:''}</div>`;
  const block=(arr,kind,pre='')=>{let h='',uf=null;for(const c of sortF(arr)){if(ord==='uf'&&c.m.uf!==uf){uf=c.m.uf;h+=`<div class="uf">${uf}</div>`}
    const rs=c[kind],k=pre+kind+c.m.cod,sel=kind==='free'&&rs.every(r=>S.sel.has(r.id));
-   h+=`<div class="city ${S.open.has(k)?'open':''} ${sel?'sel':''}"><div class="ch" data-city="${k}"><span>${S.open.has(k)?'▾':'▸'}</span><span class="nm">${esc(c.m.nome)}${ord!=='uf'?' - '+c.m.uf:''}</span><span class="st">${kmOf(c)!=null?Math.round(kmOf(c))+' km · ':''}${rs.length} NF · ${kg(sum(rs,'peso'))}</span>${kind==='free'?`<input type="checkbox" data-cityall="${c.m.cod}" ${sel?'checked':''} title="Selecionar a cidade toda">`:''}</div>
+   h+=`<div class="city ${S.open.has(k)?'open':''} ${sel?'sel':''}"><div class="ch" data-city="${k}"><span>${S.open.has(k)?'▾':'▸'}</span><span class="nm">${esc(c.m.nome)}${ord!=='uf'?' - '+c.m.uf:''}</span><span class="st">${kmOf(c)!=null?Math.round(kmOf(c))+' km · ':''}${rs.length} NF · ${kg(sum(rs,'peso'))}</span>${kind==='free'?`<input type="checkbox" data-cityall="${c.m.cod}" ${sel?'checked':''} title="Selecionar a cidade toda">`:`<select class="mv" data-mvcity="${rs.map(r=>r.id).join(',')}" title="Mover todas as cargas desta cidade neste veículo">${mvOpts(rs[0].faixa_id).replace('mover para…','mover cidade…')}</select>`}</div>
     <div class="cg">${rs.map(r=>crow(r,kind!=='free')).join('')}</div></div>`}return h};
  let h=`<div class="sec">Sem veículo · ${free.reduce((a,c)=>a+c.free.length,0)} NF</div>`+(free.length?block(free,'free'):'<div class="empty">Nenhuma carga sem veículo neste dia (ou no filtro).</div>');
  if(act)h+=`<div class="sec">Na placa ativa · ${actC.reduce((a,c)=>a+c.act.length,0)} NF</div>`+(actC.length?block(actC,'act'):'<div class="empty">Nenhuma carga ainda. Selecione destinos e clique em "Atribuir".</div>');
@@ -411,13 +417,17 @@ function renderActive(){
 function renderSel(){
  const rs=[...S.sel].map(i=>S.rows[i]).filter(Boolean),l=laneById(S.active);
  if(!rs.length){$('selbox').innerHTML=`<h3>Seleção</h3><div class="k" style="color:var(--muted)">Use o <b>laço</b> no mapa, clique nos pontos ou marque na lista.</div>`;return}
- const cs=new Set(rs.map(r=>geocode(r.cidade||'')?.nome||r.cidade)),cap=capKg(l),cw=l?sum(Object.values(S.rows).filter(r=>r.faixa_id===l.id),'peso'):0,sw=sum(rs,'peso');
+ const cs=new Set(rs.map(r=>geocode(r.cidade||'')?.nome||r.cidade)),cap=capKg(l),cw=l?sum(Object.values(S.rows).filter(r=>r.faixa_id===l.id),'peso'):0,sw=sum(rs.filter(r=>!l||r.faixa_id!==l.id),'peso');
+ const aloc=rs.filter(r=>!isFree(r)),outros=rs.filter(r=>!isFree(r)&&(!l||r.faixa_id!==l.id));
  const den=rs.filter(r=>decide('mover',r)==='deny').length,apr=rs.filter(r=>decide('mover',r)==='approve').length;
  $('selbox').innerHTML=`<h3>Seleção · ${rs.length} NF</h3><div class="k"><b>${kg(sw)}</b> · <b>${sum(rs,'vol')}</b> vol · <b>${brl(sum(rs,'valor'))}</b> · ${cs.size} cidade(s)</div>
   ${l&&cap&&cw+sw>cap?`<div class="warn">Passa da capacidade em ${kg(cw+sw-cap)}.</div>`:''}${den?`<div class="warn">${den} carga(s) você não pode mover.</div>`:''}${apr?`<div class="warn" style="color:#B8650F">${apr} carga(s) irão para aprovação.</div>`:''}
   ${l?`<div class="sim">${SIM.loading?'Simulando rota…':SIM.err?`<span class="warn">${esc(SIM.err)}</span>`:SIM.data?`Com a seleção: <b>${Math.round(SIM.data.km).toLocaleString('pt-BR')} km</b> · ${fmtMin(SIM.data.min)}${RT.data?` (<b>${SIM.data.km-RT.data.km>=0?'+':''}${Math.round(SIM.data.km-RT.data.km)} km</b> em relação à rota atual)`:''}`:''} <button class="tbtn" id="sSim" style="padding:3px 9px">Simular rota com a seleção</button></div>`:''}
-  <div class="acts"><button class="tbtn" id="sClear">Limpar</button><button class="tbtn pri" id="sGo" ${l?'':'disabled'}>${l?'Atribuir à placa ativa':'Escolha a placa ativa'}</button></div>`;
- $('sClear').onclick=()=>{S.sel.clear();SIM.data=null;renderAll(false)};$('sGo').onclick=assign;const ss=$('sSim');if(ss)ss.onclick=simulate;
+  ${aloc.length?`<div class="k" style="margin-top:6px;color:var(--navy)">${aloc.length} já alocada(s) em veículo${outros.length&&l?` · ${outros.length} sairão de outro veículo ao atribuir`:''}</div>`:''}
+  <div class="acts" style="flex-wrap:wrap"><button class="tbtn" id="sClear">Limpar</button><button class="tbtn pri" id="sGo" ${l?'':'disabled'}>${l?'Atribuir à placa ativa':'Escolha a placa ativa'}</button>
+   <select class="mv" id="sMv" style="flex:1;min-width:150px">${mvOpts(null)}</select>${aloc.length?`<button class="tbtn" id="sRm" title="As cargas voltam para pendentes">✕ Excluir alocação (${aloc.length})</button>`:''}</div>`;
+ $('sClear').onclick=()=>{S.sel.clear();SIM.data=null;renderAll(false)};$('sGo').onclick=assign;
+ $('sMv').onchange=e=>{const v=e.target.value;if(v)moveSel([...S.sel],v)};const sr=$('sRm');if(sr)sr.onclick=()=>moveSel(aloc.map(r=>r.id),'__pend');const ss=$('sSim');if(ss)ss.onclick=simulate;
 }
 function renderVehs(){
  const vs=vehicles();if(!vs.length){$('vehs').innerHTML='';return}
@@ -435,10 +445,23 @@ async function moveTo(ids,toId,why){
  if(ask.length){const{error}=await sb.from('solicitacoes').insert({data:S.day,acao_id:'mover',tipo:'move',carga_ids:ask,faixa_destino:toId,motivo:why||'roteirização'});if(error)toast(error.message,true)}
  if(den)try{await sb.rpc('registrar_bloqueio',{p_data:S.day,p_registro:ids[0],p_motivo:'Roteirização: sem permissão para mover '+den+' carga(s)'})}catch(e){}
  return{go:go.length,ask:ask.length,den}}
-async function assign(){const l=laneById(S.active);if(!l)return;const ids=[...S.sel];$('sGo').disabled=true;
+async function moveSel(ids,dest){
+ ids=ids.filter(i=>S.rows[i]);let toId=dest,nome;
+ if(dest==='__pend'){const p=pendLane();if(!p)return toast('Não há seção "Em definição" neste dia',true);toId=p.id;nome=p.titulo||'pendentes';ids=ids.filter(i=>!isFree(S.rows[i]))}
+ else nome=laneName(laneById(dest));
+ ids=ids.filter(i=>S.rows[i].faixa_id!==toId);if(!ids.length){renderAll(false);return toast('Nada para mover')}
+ const fora=ids.filter(i=>!isFree(S.rows[i])&&dest!=='__pend').length;
+ if(dest==='__pend'&&!confirm(`Excluir a alocação de ${ids.length} carga(s)? Elas voltam para "${nome}".`)){renderAll(false);return}
+ if(fora&&!confirm(`${fora} carga(s) já estão em outro veículo e serão transferidas para ${nome}. Continuar?`)){renderAll(false);return}
+ const r=await moveTo(ids,toId,dest==='__pend'?'alocação excluída na roteirização':'troca de veículo na roteirização');ids.forEach(i=>S.sel.delete(i));await loadDay();renderAll(false);
+ toast([r.go?`${r.go} movida(s) para ${nome}`:'',r.ask?`${r.ask} para aprovação`:'',r.den?`${r.den} sem permissão`:''].filter(Boolean).join(' · ')||'Nada mudou',!!r.den)}
+async function assign(){const l=laneById(S.active);if(!l)return;const ids=[...S.sel].filter(i=>S.rows[i]&&S.rows[i].faixa_id!==l.id);
+ const fora=ids.filter(i=>!isFree(S.rows[i])).length;if(fora&&!confirm(`${fora} carga(s) já estão em outro veículo e serão transferidas para ${laneName(l)}. Continuar?`))return;
+ $('sGo').disabled=true;
  const r=await moveTo(ids,l.id,'roteirização');S.sel.clear();await loadDay();renderAll(false);
  toast([r.go?`${r.go} atribuída(s) a ${laneName(l)}`:'',r.ask?`${r.ask} para aprovação`:'',r.den?`${r.den} sem permissão`:''].filter(Boolean).join(' · '),!!r.den)}
-async function unassign(id){const sec=S.lanes.find(l=>l.tipo==='secao'&&/^em defini/i.test(l.titulo||''))||S.lanes.find(l=>l.tipo==='secao');
+async function unassign(id){return moveSel([id],'__pend')}
+async function unassignOld(id){const sec=S.lanes.find(l=>l.tipo==='secao'&&/^em defini/i.test(l.titulo||''))||S.lanes.find(l=>l.tipo==='secao');
  if(!sec)return toast('Não há seção "Em definição" neste dia',true);const r=await moveTo([id],sec.id,'retirada na roteirização');await loadDay();renderAll(false);toast(r.go?'Carga voltou para '+(sec.titulo||'Em definição'):'Enviado para aprovação')}
 
 /* ---------- eventos ---------- */
@@ -448,6 +471,8 @@ document.addEventListener('click',e=>{
  const vh=e.target.closest('[data-veh]');if(vh){S.active=vh.dataset.veh;S.hidden.delete(S.active);try{localStorage.setItem(ACTKEY,S.active)}catch(x){}renderAll(false);return}
  const rm=e.target.closest('[data-rm]');if(rm){e.preventDefault();unassign(rm.dataset.rm)}});
 document.addEventListener('change',e=>{const t=e.target;
+ if(t.dataset.mv&&t.value){moveSel([t.dataset.mv],t.value);return}
+ if(t.dataset.mvcity&&t.value){moveSel(t.dataset.mvcity.split(','),t.value);return}
  if(t.dataset.c){t.checked?S.sel.add(t.dataset.c):S.sel.delete(t.dataset.c);renderAll(false)}
  if(t.dataset.cityall){const c=cities().list.find(x=>String(x.m.cod)===t.dataset.cityall);if(c)c.free.forEach(r=>t.checked?S.sel.add(r.id):S.sel.delete(r.id));renderAll(false)}});
 document.addEventListener('keydown',e=>{
