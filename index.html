@@ -373,6 +373,9 @@ select.prio:disabled{opacity:1;cursor:not-allowed}
 .sv-econ{background:#fff;color:#0B2A5B;border-color:#C9D3E3}
 .sv-expr{background:#FFE600;color:#000;border-color:#E0C800}
 .sv-pers{background:#E10600;color:#fff;border-color:#B30000}
+.brb{display:inline-block;font-size:10.5px;font-weight:700;border-radius:3px;padding:0 5px;margin-right:6px;vertical-align:1px;border:1px solid;white-space:nowrap}
+.br-ok{background:#DDF3E4;color:#1E6B3A;border-color:#8CCB9F}.br-par{background:#FFF0D6;color:#9A5B00;border-color:#F0B65A}
+.br-no{background:#FBDDDA;color:#9E2A1F;border-color:#E59288}.br-rota{background:#E2EAF6;color:#1A3A6E;border-color:#A9BCDD}.br-oc{background:#EEE;color:#555;border-color:#CCC}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -480,6 +483,17 @@ const F=[
  ['cot','DI / Cotação / R$ / prazo','full'],['obs','Observação','full'],['endent','Endereço de entrega','full']];
 const LABEL=Object.fromEntries(F.map(f=>[f[0],f[1]]));
 Object.assign(LABEL,{evento:'Evento / saída',evento_nota:'Nota do evento',motorista:'Motorista',placa:'Placa(s)',veiculo:'Veículo e capacidade',liberar_as:'Liberar motorista às',titulo:'Título',notas:'Notas',ordem:'Ordem',faixa:'Veículo'});
+const BRS={entregue:['✅','Entregue','br-ok'],parcial:['◐','Parcial','br-par'],nao_entregue:['❌','Não entregue','br-no'],manifestada:['🚚','Em rota','br-rota'],ocorrencia:['ℹ️','Ocorrência','br-oc']};
+function brBadge(r){const s=r.brudam_situacao,i=r.brudam_info||{};if(!s||!BRS[s])return'';const [ic,lb,cl]=BRS[s];
+ const hr=s==='entregue'&&i.data_entrega?String(i.data_entrega).slice(11,16):'';
+ const tip=[`Brudam ${i.sistema||''}: ${i.descricao||lb}`,i.obs?'Obs: '+i.obs:'',i.recebedor?`Recebido por ${i.recebedor}${i.recebedor_grau?' ('+i.recebedor_grau+')':''}`:'',i.data_entrega?'Entrega: '+i.data_entrega:'',i.manifesto?`Manifesto ${i.manifesto} · ${i.placa||''} · ${i.motorista||''}`:''].filter(Boolean).join('\n');
+ return `<span class="brb ${cl}" title="${esc(tip)}">${ic} ${lb}${hr?' '+hr:''}</span>`}
+function brBox(r){const s=r.brudam_situacao,i=r.brudam_info;if(!s||!i)return'';const [ic,lb]=BRS[s]||['',''];
+ return `<div class="box"><h4>${ic} Brudam ${esc(i.sistema||'')}: ${esc(i.descricao||lb)}</h4><div class="meta">
+  ${i.data?'Registrado em '+when(i.data)+' · ':''}${i.manifesto?'Manifesto '+esc(i.manifesto):''}${i.placa?' · placa '+esc(i.placa):''}${i.motorista?' · '+esc(i.motorista):''}${i.transportadora?' · '+esc(i.transportadora):''}${i.minuta?' · minuta '+esc(i.minuta):''}${i.cte?' · CT-e '+esc(i.cte):''}</div>
+  ${i.obs?`<div class="meta">Obs. do motorista: ${esc(i.obs)}</div>`:''}${i.recebedor?`<div class="meta">Recebido por <b>${esc(i.recebedor)}</b>${i.recebedor_grau?' ('+esc(i.recebedor_grau)+')':''}${i.data_entrega?' em '+esc(i.data_entrega):''}</div>`:''}
+  ${i.comprovante?`<div style="margin-top:6px"><a class="btn" href="${esc(i.comprovante)}" target="_blank" rel="noopener">📷 Ver comprovante de entrega</a></div>`:''}
+  <p class="adm-help" style="margin:6px 0 0">O status desta carga é atualizado automaticamente pelas baixas do Brudam (aparece no histórico como "Brudam (automático)").</p></div>`}
 function servBadge(v){const t=String(v||'').trim();if(!t)return'<span></span>';const n=norm(t);
  const k=n.startsWith('econom')?'econ':n.startsWith('expres')?'expr':n.startsWith('personal')?'pers':'';
  return k?`<span class="sv-b sv-${k}" title="${esc(t)}">${esc(t)}</span>`:`<span class="muted" title="${esc(t)}">${esc(t)}</span>`}
@@ -676,12 +690,12 @@ function rowHTML(id,r){
  const dpr=decide('prioridade',r).r,pr=`<select class="prio" data-pv="${r.prioridade||''}" data-act="pr" data-id="${id}" ${dpr==='deny'?'disabled title="Sem permissão para alterar a prioridade"':dpr==='approve'?'title="Alteração vai para aprovação"':'title="Prioridade de carregamento"'} aria-label="Prioridade de carregamento"><option value="">—</option>${PRIO.map(p=>`<option value="${p[0]}" ${p[0]===r.prioridade?'selected':''}>${p[1]} ${p[2]}</option>`).join('')}</select>`;
  const times=[r.hprog,r.cheg,r.hfim].map(x=>x||'–').join(' / '),rb=recBadge(id),cls=`row ${sel.has(id)?'sel':''} ${pend?'pending':''} ${RM[id]?(RM[id].alert?'rec-alert':'rec-row'):''} ${r.prioridade?'pr-'+r.prioridade:''}`;
  if(!full)return `<div class="${cls}" draggable="true" data-drag="row" data-id="${id}">${cb}${h}${pr}
-  <span title="${esc(r.dest)}">${rb}${esc(r.dest||'—')}${pend}</span><span class="muted" title="${esc(r.cidade)}">${esc(r.cidade||'')}</span>
+  <span title="${esc(r.dest)}">${rb}${brBadge(r)}${esc(r.dest||'—')}${pend}</span><span class="muted" title="${esc(r.cidade)}">${esc(r.cidade||'')}</span>
   <span title="${esc(r.nf)}">${esc(r.nf||'')}</span><span class="num">${esc(r.vol||'')}</span><span class="num">${r.peso?num(r.peso).toLocaleString('pt-BR',{maximumFractionDigits:1}):''}</span>
   <span class="num">${r.valor?brl(num(r.valor)):''}</span><span class="muted">${esc(times)}</span>${servBadge(r.serv)}
   <span>${esc(r.resp||'')}</span>${st}${stamp}</div>`;
  return `<div class="${cls}" draggable="true" data-drag="row" data-id="${id}">${cb}${h}${pr}
-  <span title="${esc(r.dest)}">${rb}${esc(r.dest||'—')}${pend}</span><span class="muted">${esc(r.cidade||'')}</span><span>${esc(r.nf||'')}</span>
+  <span title="${esc(r.dest)}">${rb}${brBadge(r)}${esc(r.dest||'—')}${pend}</span><span class="muted">${esc(r.cidade||'')}</span><span>${esc(r.nf||'')}</span>
   <span class="num">${esc(r.vol||'')}</span><span class="num">${esc(r.peso||'')}</span><span>${esc(r.cbm||'')}</span><span class="num">${r.valor?brl(num(r.valor)):''}</span>
   <span>${esc(r.hprog||'')}</span><span>${esc(r.cheg||'')}</span><span>${esc(r.hfim||'')}</span>${servBadge(r.serv)}
   <span title="${esc(r.cot)}">${esc(r.cot||'')}</span><span>${esc(r.pag||'')}</span><span>${esc(r.oc||'')}</span><span>${esc(r.md||'')}</span><span>${esc(r.end_ref||'')}</span><span title="${esc(r.gr)}">${esc(r.gr||'')}</span>
@@ -741,7 +755,7 @@ function renderBoard(){
   <span class="k"><b>${veh.length}</b> veículos</span><span class="k fl"><i class="pf"></i><b>${veh.filter(l=>frotaOf(l)==='frota').length}</b> frota <i class="pa"></i><b>${veh.filter(l=>frotaOf(l)==='agregado').length}</b> agregados <i class="pt"></i><b>${veh.filter(l=>frotaOf(l)==='terceiro').length}</b> terceiros</span><span class="k"><b>${all.length}</b> NFs</span>
   <span class="k"><b>${brl(all.reduce((a,r)=>a+num(r.valor),0))}</b> em mercadoria</span>
   <span class="k"><b>${cnt('OK')}</b> OK</span><span class="k"><b>${cnt('Em definição')}</b> em definição</span>
-  <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>${RECDAY===S.day?`<span class="k"><b style="color:var(--plum)">${Object.values(RM).filter(m=>!m.alert).length}</b> de dias anteriores</span><span class="k"><b style="color:var(--risk)">${Object.values(RM).filter(m=>m.alert).length}</b> voltaram após veículo</span>`:'<span class="k">verificando dias anteriores…</span>'}`:`<h1>Nenhum dia aberto</h1>`;
+  <span class="k"><b>${cnt('Ocorrência')+cnt('Não realizado')+cnt('Reprogramado')}</b> com ocorrência</span>${all.some(r=>r.brudam_situacao)?`<span class="k" title="Baixas do app do motorista (Brudam)">Brudam: <b style="color:var(--ok)">${all.filter(r=>r.brudam_situacao==='entregue').length}</b> entregues · <b style="color:var(--warn)">${all.filter(r=>r.brudam_situacao==='parcial').length}</b> parciais · <b style="color:var(--risk)">${all.filter(r=>r.brudam_situacao==='nao_entregue').length}</b> não entregues · <b>${all.filter(r=>r.brudam_situacao==='manifestada').length}</b> em rota</span>`:''}${RECDAY===S.day?`<span class="k"><b style="color:var(--plum)">${Object.values(RM).filter(m=>!m.alert).length}</b> de dias anteriores</span><span class="k"><b style="color:var(--risk)">${Object.values(RM).filter(m=>m.alert).length}</b> voltaram após veículo</span>`:'<span class="k">verificando dias anteriores…</span>'}`:`<h1>Nenhum dia aberto</h1>`;
  $('notes').innerHTML=(dia&&dia.lembretes&&dia.lembretes.length?`<span class="lbl">Lembretes motoristas:</span>`+dia.lembretes.map(n=>`<span class="n">${esc(n)}</span>`).join(''):'')+`<span class="plegend"><span class="lbl">Carregamento:</span>${PRIO.map(p=>`<i class="pb-${p[0]}" title="${p[3]}">${p[1]} ${p[2]}</i>`).join('')}</span>`;
  const pools=S.lanes.filter(l=>l.tipo==='secao'),canLane=decide('veiculo').r==='allow';
  $('board').innerHTML=!S.day?`<div class="empty">Ainda não há dias cadastrados. ${decide('veiculo').r==='allow'?'Use "Abrir novo dia" para começar.':'Aguarde a Programação abrir o dia.'}</div>`:
@@ -786,6 +800,7 @@ function histItem(e){
  else if(e.tipo==='importou')what=`importou o dia${d.origem?' do arquivo <b>'+esc(d.origem)+'</b>':''}: ${esc(e.para)} linhas${d.substituiu?` (substituiu ${esc(e.de)} cargas)`:''}`;
  else if(e.tipo==='backup')what=`gerou backup <b>${esc(e.para)}</b> (${d.dias} dia(s), ${d.cargas} linhas)`;
  else if(e.tipo==='bloqueado')what=`tentativa bloqueada: ${esc(d.motivo||'')}`;
+ if(d.origem==='brudam')what+=` · <span class="brb br-rota">baixa do Brudam${d.sistema?' '+esc(d.sistema):''}${d.motivo?': '+esc(d.motivo):''}${d.recebedor?' · recebido por '+esc(d.recebedor):''}</span>`;
  if(d.solicitado_por&&!['aprovou','recusou'].includes(e.tipo))what+=` · solicitado por ${esc(d.solicitado_por)}`;
  if(d.motivo&&e.tipo!=='bloqueado')what+=` · “${esc(d.motivo)}”`;
  const target=e.registro_id?`<div class="when">${esc(rowLabel(e.registro_id))}</div>`:'';
@@ -806,7 +821,7 @@ async function openRow(id){
  const pq=S.reqs.filter(q=>q.estado==='pendente'&&(q.carga_ids||[]).includes(id));
  openDrawer(`${esc(r.dest||r.col||'Carga')}<p>${r.nf?'NF '+esc(r.nf)+' · ':''}${esc(laneName(l))}${r.pendente?' · rascunho aguardando aprovação':''}</p>`,
   `${pq.length?`<div class="box"><h4>Aguardando aprovação</h4>${pq.map(q=>`<div class="meta">${esc(userName(q.usuario_id))}: ${esc(acaoNome(q.acao_id))}${q.mudancas&&q.mudancas.length?' — '+q.mudancas.map(c=>`${LABEL[c.campo]||c.campo} → ${c.para||'vazio'}`).join(', '):''}${q.faixa_destino?' → '+esc(laneName(laneById(q.faixa_destino))):''}</div>`).join('')}</div>`:''}
-   ${recBox(id)}<div class="form">${fields}<div class="fld full"><label><span>Motivo da alteração (opcional, vai para o histórico e para quem aprova)</span></label><input id="why"></div></div>${mv}
+   ${brBox(r)}${recBox(id)}<div class="form">${fields}<div class="fld full"><label><span>Motivo da alteração (opcional, vai para o histórico e para quem aprova)</span></label><input id="why"></div></div>${mv}
    <div class="box"><h4>Histórico desta carga</h4><div id="rowHist" class="empty">Carregando…</div></div>`,
   `${exd.r!=='deny'?`<button class="btn no" id="delRow" style="margin-right:auto">${exd.r==='allow'?'Excluir carga':'Solicitar exclusão'}</button>`:''}<button class="btn" data-act="close">Fechar</button><button class="btn pri" id="saveRow">Salvar alterações</button>`);
  $('saveRow').onclick=async()=>{const ch={};document.querySelectorAll('#dBody [data-f]').forEach(el=>{if(!el.disabled)ch[el.dataset.f]=el.value.trim()});
@@ -1092,8 +1107,8 @@ async function loadBrudam(){
  try{const lim=new Date(day+'T12:00:00');lim.setDate(lim.getDate()-10);const ls=lim.toISOString().slice(0,10);
   const [rows,log]=await Promise.all([
    q(sb.from('brudam_coletas').select('sistema,id_coleta,status_brudam,data_emissao,data_coleta,hora_ini,hora_fim,cliente,local_coleta,endereco_coleta,cidade_coleta,local_entrega,endereco_entrega,cidade_entrega,responsavel,valor,peso,volumes,nfs,minutas,placa,ultima_ocorrencia,ultima_ocorrencia_obs,ultima_ocorrencia_data,atualizado_em').or(`data_coleta.eq.${day},and(status_brudam.eq.1,data_coleta.gte.${ls},data_coleta.lt.${day})`).order('hora_ini').range(0,1999)),
-   q(sb.from('brudam_sync_log').select('*').order('ts',{ascending:false}).limit(20))]);
-  const lp={};log.forEach(x=>{const k=x.sistema||'AZ';if(!lp[k])lp[k]=x});
+   q(sb.from('brudam_sync_log').select('*').order('ts',{ascending:false}).limit(40))]);
+  const lp={};log.forEach(x=>{const k=(x.tipo||'coletas')+'|'+(x.sistema||'AZ');if(!lp[k])lp[k]=x});
   BR={...BR,rows,log:log[0]||null,logs:Object.values(lp),ok:true,erro:null,day};
  }catch(e){BR={...BR,rows:[],log:null,ok:false,erro:e.message,day}}
 }
@@ -1122,8 +1137,8 @@ function renderBrudam(){
  const laneOpts=S.lanes.map(l=>`<option value="${l.id}" ${l===secao?'selected':''}>${esc(laneName(l))}</option>`).join('');
  const chip=(k,t)=>`<button class="tbtn ${f===k?'on':''}" data-brf="${k}">${t} <b>${cnt[k]}</b></button>`;
  openDrawer(`Coletas Brudam · ${dayLabel(S.day)}<p>Somente conferência: nada aqui altera o Brudam. Ligação pela NF (ou pelo número da coleta escrito na linha).</p>`,
-  `<div class="box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="meta" style="flex:1">${BR.logs.length?BR.logs.map(lg=>`<div><b>${esc(SIS_N[lg.sistema||'AZ']||lg.sistema)}</b> · última sincronização: <b>${when(lg.ts)}</b> (${esc(lg.origem||'')}${lg.quem?' · '+esc(lg.quem):''}) · ${lg.ok?'<span class="lg-ok">OK</span>':'<span class="lg-no">falhou</span>'} · ${esc(lg.msg||'')}</div>`).join(''):'Ainda não houve sincronização.'}</div>
-   <button class="btn pri" id="brSync">Atualizar agora</button></div>
+  `<div class="box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div class="meta" style="flex:1">${BR.logs.length?BR.logs.map(lg=>`<div><b>${(lg.tipo||'coletas')==='entregas'?'Entregas':'Coletas'} · ${esc(SIS_N[lg.sistema||'AZ']||lg.sistema)}</b> · última sincronização: <b>${when(lg.ts)}</b> (${esc(lg.origem||'')}${lg.quem?' · '+esc(lg.quem):''}) · ${lg.ok?'<span class="lg-ok">OK</span>':'<span class="lg-no">falhou</span>'} · ${esc(lg.msg||'')}</div>`).join(''):'Ainda não houve sincronização.'}</div>
+   <div style="display:flex;flex-direction:column;gap:6px"><button class="btn pri" id="brSync">Atualizar coletas</button><button class="btn" id="brSyncE">Atualizar entregas (baixas)</button></div></div>
    ${sisList.length>1?`<div class="chips">${['',...sisList].map(k=>`<button class="tbtn ${BR.sis===k?'on':''}" data-brs="${k}">${k?esc(SIS_N[k]||k):'Todos os sistemas'}</button>`).join('')}</div>`:''}
    <div class="chips">${chip('todas','Todas')}${chip('falta','Faltam na programação')}${chip('ok','Já na programação')}${chip('div','Placa diferente')}${chip('atr','Atrasadas (dias anteriores)')}${chip('canc','Canceladas')}</div>
    ${list.length?`<div class="adm-wrap"><table class="adm br"><thead><tr><th>Coleta</th><th>Coleta em</th><th>Entrega para</th><th>NFs</th><th>Vol · peso · valor</th><th>Brudam</th><th>Programação</th></tr></thead><tbody>
@@ -1143,6 +1158,10 @@ function renderBrudam(){
   try{const{data:{session}}=await sb.auth.getSession();const r=await fetch(SUPA_URL+'/functions/v1/brudam-sync',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:SUPA_KEY}});
    const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)toast('Sincronização: '+(j.erro||('HTTP '+r.status)),true);else toast(`Sincronizado: ${j.qtd} coletas${j.sistemas?' ('+Object.entries(j.sistemas).map(([k,v])=>k+' '+(v.ok?v.qtd:'erro')).join(' · ')+')':''}`)}catch(e){fail(e,'Sincronização')}
   await loadBrudam();if(panel==='brudam')renderBrudam()};
+ $('brSyncE').onclick=async()=>{const b=$('brSyncE');b.disabled=true;b.textContent='Buscando baixas… (até 2 min)';
+  try{const{data:{session}}=await sb.auth.getSession();const r=await fetch(SUPA_URL+'/functions/v1/brudam-entregas',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.access_token,apikey:SUPA_KEY}});
+   const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)toast('Entregas: '+(j.erro||('HTTP '+r.status)),true);else toast('Entregas: '+Object.entries(j.sistemas||{}).map(([k,v])=>`${k} ${v.ok?v.alterados+' status atualizados':'erro'}`).join(' · '))}catch(e){fail(e,'Entregas')}
+  await loadDay();renderBoard();await loadBrudam();if(panel==='brudam')renderBrudam()};
 }
 async function addFromBrudam(ck){const [sis,id]=ck.split('|');const c=BR.rows.find(x=>(x.sistema||'AZ')===sis&&x.id_coleta===id);if(!c)return;const to=document.querySelector(`[data-brlane="${CSS.escape(ck)}"]`)?.value;const tag=sis==='AZ'?'':sis+' ';
  const d=decide('criar',null);if(d.r==='deny')return deny(d.why);const l=laneById(to);if(!l)return toast('Escolha onde adicionar',true);
