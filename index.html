@@ -226,8 +226,8 @@ tr.off td{opacity:.55}
 
 
 /* placa ao lado da hora */
-.lane{grid-template-columns:74px 112px 1fr}
-.lane.sumline{grid-template-columns:74px 112px 1fr}
+.lane{grid-template-columns:118px 1fr}
+.lane.sumline{grid-template-columns:118px 1fr}
 .plate{background:var(--dock);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10px!important;gap:2px;padding:6px 4px;border-left:1px solid rgba(255,255,255,.22);text-align:center}
 .plate .p{font-size:20px;font-weight:800;font-variation-settings:"wdth" 70;line-height:1;letter-spacing:.01em;white-space:nowrap}
 .plate .s{font-size:11px;opacity:.85}
@@ -241,7 +241,7 @@ tr.off td{opacity:.55}
 #btnReq.pend{background:var(--risk);border-color:var(--risk);color:#fff}
 #btnReq .cnt{background:#fff;color:var(--risk)}
 @media (max-width:720px){
- .lane,.lane.sumline{grid-template-columns:50px 78px 1fr}
+ .lane,.lane.sumline{grid-template-columns:86px 1fr}
  .plate .p,.lane.sumline .plate .p{font-size:16px}
 }
 
@@ -428,6 +428,11 @@ body.side-min .side{padding:12px 8px}body.side-min .sd-it{justify-content:center
 .row .tm{color:var(--muted)}
 @media (max-width:900px){body.app-on{--sw:62px}.side .wm,.sd-it span,.sd-sec,.sd-foot span:last-child{display:none}.sd-it{justify-content:center}.ab-ic .lb,.who-btn .wn,.ab-title{display:none}}
 
+.plate .hr{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.4px;line-height:1;margin-bottom:3px;padding:2px 7px;border-radius:10px;background:rgba(0,0,0,.18);color:#fff;white-space:nowrap;order:-1}
+.plate .hs{order:-1;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.9;margin:-1px 0 3px;white-space:nowrap}
+.plate.pa .hr{background:rgba(26,58,110,.85)}
+.lane.pool .plate .hr{background:transparent;color:var(--muted);font-size:11px}
+.lane.sumline .plate .hr{font-size:12px;margin-bottom:2px}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:8px;font-size:13.5px;display:none;max-width:calc(100% - 24px)}
 .toast.on{display:block}
 .toast.bad{background:var(--risk);color:#fff}
@@ -613,7 +618,7 @@ function plates(l){const f=extractPlates(l.placa);return f.length?f:String(l.pla
 const FROTA_N={frota:'Frota',agregado:'Agregado',terceiro:'Terceiro'},FROTA_C={frota:'pf',agregado:'pa',terceiro:'pt'};
 function frotaOfPlates(ps){const m=Object.fromEntries(S.placas.filter(p=>p.ativo).map(p=>[p.placa,p.tipo]));if(ps.some(p=>m[p]==='frota'))return'frota';if(ps.some(p=>m[p]==='agregado'))return'agregado';return'terceiro'}
 const frotaOf=l=>frotaOfPlates(extractPlates(l.placa));
-function plateHTML(l){if(l.tipo!=='veiculo')return `<div class="plate"><span class="p">—</span></div>`;const p=plates(l),fo=frotaOf(l);return `<div class="plate ${FROTA_C[fo]}" title="${FROTA_N[fo]}"><span class="s">${FROTA_N[fo]}</span>${p.length?p.map(x=>`<span class="p">${esc(x)}</span>`).join(''):'<span class="p">—</span>'}</div>`}
+function plateHTML(l){if(l.tipo!=='veiculo')return `<div class="plate"><span class="hr">sem veículo</span><span class="p">—</span></div>`;const p=plates(l),fo=frotaOf(l),dp=depart(l);return `<div class="plate ${FROTA_C[fo]}" title="${FROTA_N[fo]} · saída ${dp.t}${dp.s?' ('+dp.s+')':''}"><span class="hr">⏱ ${dp.t}</span>${dp.s?`<span class="hs">${esc(dp.s)}</span>`:''}<span class="s">${FROTA_N[fo]}</span>${p.length?p.map(x=>`<span class="p">${esc(x)}</span>`).join(''):'<span class="p">—</span>'}</div>`}
 const laneRows=l=>Object.values(S.rows).filter(r=>r.faixa_id===l.id).sort((a,b)=>a.ordem-b.ordem||String(a.criado_em).localeCompare(b.criado_em)).map(r=>r.id);
 function rowLabel(id){const r=S.rows[id];if(r)return [r.nf?'NF '+r.nf:'',r.dest||r.col].filter(Boolean).join(' — ').slice(0,90);const l=laneById(id);return l?laneName(l):''}
 function ago(ts){const s=(Date.now()-new Date(ts))/1000;if(s<60)return'agora';if(s<3600)return Math.floor(s/60)+' min';if(s<86400)return Math.floor(s/3600)+' h';return new Date(ts).toLocaleDateString('pt-BR')}
@@ -786,7 +791,7 @@ function laneHTML(l){
   const dTxt=dests.length?dests.slice(0,12).join(', ')+(dests.length>12?` +${dests.length-12}`:''):'Sem destinatários';
   const cTxt=cities.length?cities.slice(0,5).map(x=>`${x.n} (${x.c})`).join(', ')+(cities.length>5?` +${cities.length-5}`:''):'';
   const oc=cnt(['Ocorrência','Não realizado','Reprogramado','Cancelado']),nrec=ids.filter(id=>RM[id]&&!RM[id].alert).length,nal=ids.filter(id=>RM[id]&&RM[id].alert).length;
-  return `<section class="lane sumline ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}"><div class="spine">${spine}</div>${plateHTML(l)}<div class="lbody">
+  return `<section class="lane sumline ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}">${plateHTML(l)}<div class="lbody">
    <button class="sline" data-act="toggle" data-lane="${l.id}" aria-expanded="false" title="Abrir ${esc(laneName(l))}">
     <span class="sv">${l.tipo==='veiculo'?`<b>${esc(l.motorista||'Sem motorista')}</b> · ${esc((l.veiculo||'').split(' - ')[0])}`:`<b>${esc(l.titulo)}</b>`}</span>
     <span class="sl">${fil?visReal.length+' de ':''}${real.length} NF · ${vol} vol${l.tipo==='veiculo'&&c.kg?` <span class="bar ${pct>100?'over':''}"><i style="width:${Math.min(pct,100)}%"></i></span>${Math.round(pct)}%`:` · ${brl(val)}`}</span>
@@ -808,7 +813,7 @@ function laneHTML(l){
     <button class="collapse" data-act="toggle" data-lane="${l.id}" aria-expanded="true">Resumir ▴</button>
     <div class="evt">${esc(l.evento||'')}${l.evento_nota?' · '+esc(l.evento_nota):''}${l.liberar_as?' · liberar motorista às '+esc(l.liberar_as):''}</div>`
   :`<h2>${esc(l.titulo)}</h2><span class="gauge">${real.length} NF · ${vol} vol · ${brl(val)}</span>${prioCounts(real)}${vd==='allow'?`<button class="icon" data-act="lane" data-lane="${l.id}">Editar agrupamento</button>`:''}<button class="collapse" data-act="toggle" data-lane="${l.id}" aria-expanded="true">Resumir ▴</button>${l.notas&&l.notas.length?`<div class="evt">${l.notas.map(esc).join(' · ')}</div>`:''}`;
- return `<section class="lane ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}"><div class="spine">${spine}</div>${plateHTML(l)}
+ return `<section class="lane ${l.tipo==='secao'?'pool':''}" data-lane="${l.id}">${plateHTML(l)}
   <div class="lbody"><div class="lhead">${head}</div>
   <div class="rows"><div class="tbl">${real.length?(UI.view==='f'?HDR_F:HDR_C):''}${body||'<div class="empty">Sem cargas. Arraste cargas para cá.</div>'}</div></div>
   ${decide('criar').r!=='deny'?`<div class="lfoot"><button data-act="new" data-lane="${l.id}">+ Nova carga</button></div>`:''}</div></section>`}
